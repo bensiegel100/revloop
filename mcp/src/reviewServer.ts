@@ -1,4 +1,6 @@
+import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/server";
+import { normalizeRepositoryRelativePath } from "@revloop/shared";
 import type { ReviewThread } from "@revloop/shared";
 import { z } from "zod";
 import { McpReviewRepository } from "./reviewRepository.js";
@@ -10,6 +12,25 @@ type ReviewRepository = Pick<
 type ReviewRepositoryFactory = (
   repositoryRoot: string,
 ) => Promise<ReviewRepository>;
+
+const absoluteRepositoryRootSchema = z
+  .string()
+  .min(1)
+  .refine((value) => path.isAbsolute(value), {
+    message: "Repository root must be an absolute path.",
+  });
+const nonBlankStringSchema = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0, {
+    message: "Value must contain non-whitespace characters.",
+  });
+const repositoryRelativePathSchema = z
+  .string()
+  .min(1)
+  .refine(isRepositoryRelativePath, {
+    message: "File path must be repository-relative.",
+  });
 
 export function createReviewServer(
   repositoryFactory: ReviewRepositoryFactory = (repositoryRoot) =>
@@ -30,18 +51,16 @@ export function createReviewServer(
       description:
         "Read Revloop review threads for the current repository and branch. Defaults to open threads only.",
       inputSchema: z.object({
-        repositoryRoot: z
-          .string()
-          .min(1)
-          .describe("Absolute path to the current Git repository root."),
+        repositoryRoot: absoluteRepositoryRootSchema.describe(
+          "Absolute path to the current Git repository root.",
+        ),
         status: z
           .enum(["open", "outdated", "resolved", "unresolved", "all"])
           .optional()
           .describe(
             "Thread status to return. Unresolved includes open and outdated threads. Defaults to open.",
           ),
-        filePath: z
-          .string()
+        filePath: repositoryRelativePathSchema
           .optional()
           .describe("Optional repository-relative file path filter."),
       }),
@@ -60,12 +79,11 @@ export function createReviewServer(
       description:
         "Append an agent reply describing what changed, answering the question, declining the request, or explaining a blocker. This tool never resolves or reopens the thread; only the user controls resolution.",
       inputSchema: z.object({
-        repositoryRoot: z
-          .string()
-          .min(1)
-          .describe("Absolute path to the current Git repository root."),
-        threadId: z.string().min(1).describe("Stable Revloop thread ID."),
-        body: z.string().min(1).describe("Detailed reply for the reviewer."),
+        repositoryRoot: absoluteRepositoryRootSchema.describe(
+          "Absolute path to the current Git repository root.",
+        ),
+        threadId: nonBlankStringSchema.describe("Stable Revloop thread ID."),
+        body: nonBlankStringSchema.describe("Detailed reply for the reviewer."),
         outcome: z
           .enum(["changed", "answered", "declined", "blocked"])
           .optional()
@@ -135,6 +153,15 @@ export function createReviewToolHandlers(
       });
     },
   };
+}
+
+function isRepositoryRelativePath(value: string): boolean {
+  try {
+    normalizeRepositoryRelativePath(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function toAgentThread(thread: ReviewThread): object {

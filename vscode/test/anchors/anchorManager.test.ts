@@ -130,7 +130,9 @@ describe("anchor manager", () => {
         getText: () => "intro\nbefore\nvalue\nafter",
       },
     });
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.waitFor(() => {
+      expect(vi.getTimerCount()).toBe(1);
+    });
     await vi.advanceTimersByTimeAsync(250);
 
     expect(repository.updateAnchor).toHaveBeenCalledWith(

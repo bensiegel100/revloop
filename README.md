@@ -8,6 +8,7 @@ Revloop adds persistent code-review threads to native VS Code diffs and exposes 
 vscode/  VS Code extension
 mcp/     Local stdio MCP server
 shared/  Shared thread, storage, and repository primitives
+fuzz/    Shared fast-check helpers and property-based test suites
 plugin/  Portable Agent Plugins bundle with MCP configuration and skill
 ```
 
@@ -74,6 +75,7 @@ npm run test:extension
 npm run test:mcp
 npm run test:plugin
 npm run test:integration
+npm run test:fuzz
 npm run package:vscode
 ```
 

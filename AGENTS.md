@@ -15,14 +15,15 @@ npm run check
 ```
 
 `npm run check` runs formatting checks, lint, type checking, unit tests, builds,
-and the MCP protocol smoke test. It does not run the VS Code extension-host or
-Agent Plugin integration tests:
+and the MCP protocol smoke test. It does not run the VS Code extension-host,
+Agent Plugin integration, or fuzz tests:
 
 ```bash
 npm run test:extension
 npm run test:mcp
 npm run test:plugin
 npm run test:integration
+npm run test:fuzz
 npm run package:vscode
 ```
 
@@ -53,9 +54,10 @@ Use the validation path that matches the change:
 Husky installs repository hooks through the root `prepare` script:
 
 - `pre-commit` runs lint-staged with ESLint before Prettier, then type checking
-  and the Turbo unit-test graph.
-- `pre-push` runs `npm run test:integration`, which covers the MCP protocol,
-  VS Code extension-host, and Agent Plugin integration suites.
+  and coverage-gated unit tests. Fuzz tests are excluded from this path.
+- `pre-push` runs `npm run test:integration` and `npm run test:fuzz`, covering
+  the MCP protocol, VS Code extension-host, Agent Plugin integration, and
+  property-based fuzz suites.
 
 ESLint uses the type-aware TypeScript strict and stylistic presets. Additional
 flat-config layers enforce import integrity with `eslint-plugin-import-x`,
@@ -71,11 +73,19 @@ object spread, explicit `parseInt` radix values, explicit exported API types,
 readonly inference, full promise misuse checks, unambiguous void expressions,
 exhaustive switches, strict boolean expressions, and safe type assertions.
 
+When adding a package, check whether its maintainers publish an official ESLint
+plugin or recommended lint configuration. If one exists and is compatible with
+this repository's flat ESLint setup, install it and enable its recommended rules
+for the relevant files.
+
 ## Architecture and ownership
 
 - `shared/` owns framework-independent thread types, state transitions,
   repository identity, path normalization, schema validation, locking, and JSON
   persistence. Keep it free of VS Code and MCP dependencies.
+- `fuzz/` owns all fast-check configuration, arbitraries, generated review
+  fixtures, and fuzz suites. Keep all fuzz tests under `fuzz/test`; do not add
+  package-local fuzz suites.
 - `vscode/` owns the extension UI, Git integration, diff snapshots, anchor
   remapping, historical documents, and review lifecycle. Agent integration does
   not belong in the extension.
@@ -139,6 +149,8 @@ and external agent processes see the same review data.
 - File and thread rows are already clickable. Do not add redundant open buttons.
 - Show a file's thread count only when it is nonzero.
 - Leave VS Code's native comment-editor keybindings unchanged.
+- Only user-authored comments and replies are editable; agent replies are
+  read-only.
 - Only the user may resolve or reopen a review thread. Agents address feedback
   and reply with `changed`, `answered`, `declined`, or `blocked`; they do not
   control resolution.

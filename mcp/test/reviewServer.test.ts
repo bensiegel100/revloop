@@ -1,3 +1,5 @@
+import path from "node:path";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { describe, expect, it, vi } from "vitest";
 import type {
   AnchorSnapshot,
@@ -73,6 +75,76 @@ describe("MCP review server", () => {
       replyId: "reply-1",
       status: "open",
     });
+  });
+
+  it("validates tool arguments before repository access", async () => {
+    const repository = createRepository();
+    const factory = vi.fn(() => Promise.resolve(repository));
+    const server = createReviewServer(factory);
+    const client = new Client({
+      name: "revloop-contract-test",
+      version: "0.0.1",
+    });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const repositoryRoot = path.resolve("/workspace/repository");
+
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    try {
+      expect(
+        await client.callTool({
+          name: "read_comments",
+          arguments: {
+            repositoryRoot: "relative/repository",
+          },
+        }),
+      ).toMatchObject({ isError: true });
+      expect(
+        await client.callTool({
+          name: "read_comments",
+          arguments: {
+            repositoryRoot,
+            filePath: "../outside.ts",
+          },
+        }),
+      ).toMatchObject({ isError: true });
+      expect(
+        await client.callTool({
+          name: "reply_to_comment",
+          arguments: {
+            repositoryRoot,
+            threadId: "thread-1",
+            body: "   ",
+          },
+        }),
+      ).toMatchObject({ isError: true });
+      expect(factory).not.toHaveBeenCalled();
+
+      expect(
+        await client.callTool({
+          name: "read_comments",
+          arguments: {
+            repositoryRoot,
+            filePath: "src/index.ts",
+          },
+        }),
+      ).not.toMatchObject({ isError: true });
+      expect(
+        await client.callTool({
+          name: "reply_to_comment",
+          arguments: {
+            repositoryRoot,
+            threadId: "thread-1",
+            body: "Updated.",
+          },
+        }),
+      ).not.toMatchObject({ isError: true });
+      expect(factory).toHaveBeenCalledOnce();
+    } finally {
+      await client.close();
+      await server.close();
+    }
   });
 });
 

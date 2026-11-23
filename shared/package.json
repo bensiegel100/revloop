@@ -18,7 +18,8 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint src test",
     "test": "vitest run --config ../vitest.config.mts --root .",
-    "test:coverage": "vitest run --config ../vitest.config.mts --root . --coverage"
+    "test:coverage": "vitest run --config ../vitest.config.mts --root . --coverage",
+    "test:fuzz": "vitest run --mode fuzz --config ../vitest.config.mts --root ."
   },
   "dependencies": {
     "zod": "4.6.7"

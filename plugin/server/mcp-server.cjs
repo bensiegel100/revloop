@@ -900,10 +900,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path4) {
-  if (!path4)
+function getElementAtPath(obj, path5) {
+  if (!path5)
     return obj;
-  return path4.reduce((acc, key) => acc?.[key], obj);
+  return path5.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -1243,11 +1243,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path4, issues) {
+function prefixIssues(path5, issues) {
   return issues.map((iss) => {
     var _a3;
     (_a3 = iss).path ?? (_a3.path = []);
-    iss.path.unshift(path4);
+    iss.path.unshift(path5);
     return iss;
   });
 }
@@ -1709,16 +1709,16 @@ function flattenError(error62, mapper = (issue2) => issue2.message) {
 }
 function formatError(error62, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error63, path4 = []) => {
+  const processError = (error63, path5 = []) => {
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path4, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path5, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path4, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path5, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path4, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path5, ...issue2.path]);
       } else {
-        const fullpath = [...path4, ...issue2.path];
+        const fullpath = [...path5, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -1757,17 +1757,17 @@ function formatError(error62, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error62, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error63, path4 = []) => {
+  const processError = (error63, path5 = []) => {
     var _a3;
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path4, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path5, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path4, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path5, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path4, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path5, ...issue2.path]);
       } else {
-        const fullpath = [...path4, ...issue2.path];
+        const fullpath = [...path5, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1806,8 +1806,8 @@ function treeifyError(error62, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path4 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path4) {
+  const path5 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path5) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -18945,13 +18945,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path4 = ref.slice(1).split("/").filter(Boolean);
-  if (path4.length === 0) {
+  const path5 = ref.slice(1).split("/").filter(Boolean);
+  if (path5.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path4[0] === defsKey) {
-    const key = path4[1] === void 0 ? void 0 : decodeJSONPointerSegment(path4[1]);
+  if (path5[0] === defsKey) {
+    const key = path5[1] === void 0 ? void 0 : decodeJSONPointerSegment(path5[1]);
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -23379,9 +23379,9 @@ var rev2026Codec = {
     });
     const parsed = buildSchemas2026().RequestMetaEnvelopeSchema.safeParse(meta3);
     if (!parsed.success) for (const issue2 of parsed.error.issues) {
-      const path4 = issue2.path.map(String);
-      const key = path4.length > 0 ? path4.join(".") : "_meta";
-      if (path4.length === 1 && issues.some((existing) => existing.key === key && existing.problem === "missing")) continue;
+      const path5 = issue2.path.map(String);
+      const key = path5.length > 0 ? path5.join(".") : "_meta";
+      if (path5.length === 1 && issues.some((existing) => existing.key === key && existing.problem === "missing")) continue;
       issues.push({
         key,
         problem: issue2.message
@@ -23689,17 +23689,17 @@ function scanXMcpHeaderDeclarations(inputSchema) {
   const declarations = [];
   const seenLower = /* @__PURE__ */ new Map();
   let numberFault;
-  const visit2 = (node2, path4, reachable) => {
+  const visit2 = (node2, path5, reachable) => {
     if (node2 === null || typeof node2 !== "object") return void 0;
     const schema = node2;
     if (X_MCP_HEADER_KEY in schema) {
-      if (!reachable || path4.length === 0) return `${pathName(path4)}: x-mcp-header is only permitted on properties statically reachable via a chain of 'properties' keys (not under items, additionalProperties, oneOf/anyOf/allOf/not, if/then/else, or $ref)`;
+      if (!reachable || path5.length === 0) return `${pathName(path5)}: x-mcp-header is only permitted on properties statically reachable via a chain of 'properties' keys (not under items, additionalProperties, oneOf/anyOf/allOf/not, if/then/else, or $ref)`;
       const raw = schema[X_MCP_HEADER_KEY];
-      if (typeof raw !== "string" || raw.length === 0) return `${pathName(path4)}: x-mcp-header MUST be a non-empty string`;
-      if (!RFC9110_TOKEN.test(raw)) return `${pathName(path4)}: x-mcp-header '${raw}' is not a valid RFC 9110 token (no spaces, control characters or HTTP delimiters)`;
+      if (typeof raw !== "string" || raw.length === 0) return `${pathName(path5)}: x-mcp-header MUST be a non-empty string`;
+      if (!RFC9110_TOKEN.test(raw)) return `${pathName(path5)}: x-mcp-header '${raw}' is not a valid RFC 9110 token (no spaces, control characters or HTTP delimiters)`;
       const type = typeof schema.type === "string" ? schema.type : void 0;
       if (type === void 0 || !PERMITTED_X_MCP_HEADER_TYPES.has(type)) {
-        const fault$1 = `${pathName(path4)}: x-mcp-header is only permitted on primitive-typed properties (string, integer, boolean); got ${type ?? "<none>"}`;
+        const fault$1 = `${pathName(path5)}: x-mcp-header is only permitted on primitive-typed properties (string, integer, boolean); got ${type ?? "<none>"}`;
         if (type !== "number") return fault$1;
         numberFault ??= fault$1;
       }
@@ -23708,14 +23708,14 @@ function scanXMcpHeaderDeclarations(inputSchema) {
       if (prior !== void 0) return `x-mcp-header '${raw}' is not case-insensitively unique (also declared as '${prior}')`;
       seenLower.set(lower, raw);
       declarations.push({
-        path: path4,
+        path: path5,
         headerName: raw,
         type
       });
     }
     const properties = schema.properties;
     if (properties !== null && typeof properties === "object") for (const [key, child] of Object.entries(properties)) {
-      const fault$1 = visit2(child, [...path4, key], reachable);
+      const fault$1 = visit2(child, [...path5, key], reachable);
       if (fault$1 !== void 0) return fault$1;
     }
     for (const k of NON_REACHABLE_SUBSCHEMA_KEYWORDS) {
@@ -23723,7 +23723,7 @@ function scanXMcpHeaderDeclarations(inputSchema) {
       if (sub === void 0) continue;
       const branches = Array.isArray(sub) ? sub : sub !== null && typeof sub === "object" && OBJECT_VALUED_SUBSCHEMA_KEYWORDS.has(k) ? Object.values(sub) : [sub];
       for (const branch of branches) {
-        const fault$1 = visit2(branch, [...path4, `<${k}>`], false);
+        const fault$1 = visit2(branch, [...path5, `<${k}>`], false);
         if (fault$1 !== void 0) return fault$1;
       }
     }
@@ -23768,8 +23768,8 @@ var OBJECT_VALUED_SUBSCHEMA_KEYWORDS = /* @__PURE__ */ new Set([
   "$defs",
   "definitions"
 ]);
-function pathName(path4) {
-  return path4.length === 0 ? "<root>" : path4.join(".");
+function pathName(path5) {
+  return path5.length === 0 ? "<root>" : path5.join(".");
 }
 var HEADER_MISMATCH_ERROR_CODE = -32020;
 var INBOUND_VALIDATION_LADDER = [
@@ -24022,7 +24022,7 @@ var PROPERTY_KEYS_BY_TYPE = {
   array: shapeKeys([UntitledMultiSelectEnumSchemaSchema, TitledMultiSelectEnumSchemaSchema])
 };
 var SUPPORTED_STRING_FORMATS = new Set(StringSchemaSchema.shape.format.unwrap().options);
-function walkProperty(node2, path4, vendor, unsupported) {
+function walkProperty(node2, path5, vendor, unsupported) {
   if (!isJsonObject(node2)) return node2;
   const allowedKeys = typeof node2.type === "string" && Object.hasOwn(PROPERTY_KEYS_BY_TYPE, node2.type) ? PROPERTY_KEYS_BY_TYPE[node2.type] : void 0;
   if (allowedKeys === void 0) return node2;
@@ -24030,8 +24030,8 @@ function walkProperty(node2, path4, vendor, unsupported) {
   for (const [key, value] of Object.entries(node2)) if (allowedKeys.has(key) || isAnnotationOnlyJsonSchemaKeyword(key)) pruned[key] = value;
   else if (key === "pattern" && node2.type === "string" && typeof node2.format === "string") {
     if (!SUPPORTED_STRING_FORMATS.has(node2.format)) pruned[key] = value;
-    else if (typeof value !== "string" || !isLibraryFormatPattern(node2.format, value, vendor)) unsupported.push(`${path4}.${key}`);
-  } else unsupported.push(`${path4}.${key}`);
+    else if (typeof value !== "string" || !isLibraryFormatPattern(node2.format, value, vendor)) unsupported.push(`${path5}.${key}`);
+  } else unsupported.push(`${path5}.${key}`);
   return pruned;
 }
 function walkRequestedSchema(converted, vendor) {
@@ -24048,11 +24048,11 @@ function describeUnsupportedProperties(pruned, fallback) {
   const offenders = Object.entries(pruned.properties).filter(([, node2]) => !parseSchema(PrimitiveSchemaDefinitionSchema, node2).success).map(([name]) => `properties.${name}`);
   return offenders.length > 0 ? offenders.join(", ") : fallback;
 }
-function findDroppedConstraintPaths(original, parsed, path4 = "") {
-  if (Array.isArray(original) && Array.isArray(parsed)) return original.flatMap((item, index) => findDroppedConstraintPaths(item, parsed[index], `${path4}[${index}]`));
+function findDroppedConstraintPaths(original, parsed, path5 = "") {
+  if (Array.isArray(original) && Array.isArray(parsed)) return original.flatMap((item, index) => findDroppedConstraintPaths(item, parsed[index], `${path5}[${index}]`));
   if (!isJsonObject(original) || !isJsonObject(parsed)) return [];
   return Object.entries(original).flatMap(([key, value]) => {
-    const childPath = path4 ? `${path4}.${key}` : key;
+    const childPath = path5 ? `${path5}.${key}` : key;
     if (!Object.prototype.hasOwnProperty.call(parsed, key)) return isAnnotationOnlyJsonSchemaKeyword(key) ? [] : [childPath];
     return findDroppedConstraintPaths(value, parsed[key], childPath);
   });
@@ -28190,8 +28190,8 @@ var require_utils = /* @__PURE__ */ __commonJSMin(((exports2, module2) => {
     for (let i = 0; i < str.length; i++) if (str[i] === token) ind++;
     return ind;
   }
-  function removeDotSegments(path4) {
-    let input2 = path4;
+  function removeDotSegments(path5) {
+    let input2 = path5;
     const output2 = [];
     let nextSlash = -1;
     let len = 0;
@@ -28529,8 +28529,8 @@ var require_schemes = /* @__PURE__ */ __commonJSMin(((exports2, module2) => {
     }
     if (wsComponent.resourceName) {
       const queryIndex = wsComponent.resourceName.indexOf("?");
-      const path4 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-      wsComponent.path = path4 && path4 !== "/" ? path4 : void 0;
+      const path5 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+      wsComponent.path = path5 && path5 !== "/" ? path5 : void 0;
       wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
       wsComponent.resourceName = void 0;
     }
@@ -34480,14 +34480,11 @@ var StdioServerTransport = class {
   }
 };
 
+// src/reviewServer.ts
+var import_node_path4 = __toESM(require("node:path"), 1);
+
 // ../node_modules/@modelcontextprotocol/server/dist/index.mjs
 var DEFAULT_MAX_REQUEST_BODY_SIZE = 4 * 1024 * 1024;
-
-// src/reviewRepository.ts
-var import_node_child_process = require("node:child_process");
-var import_promises2 = require("node:fs/promises");
-var import_node_path3 = __toESM(require("node:path"), 1);
-var import_node_util = require("node:util");
 
 // ../shared/dist/domain/threadState.js
 var import_node_crypto = require("node:crypto");
@@ -34909,6 +34906,10 @@ async function hasActiveReclaimers(reclaimersPath) {
 }
 
 // src/reviewRepository.ts
+var import_node_child_process = require("node:child_process");
+var import_promises2 = require("node:fs/promises");
+var import_node_path3 = __toESM(require("node:path"), 1);
+var import_node_util = require("node:util");
 var execFileAsync = (0, import_node_util.promisify)(import_node_child_process.execFile);
 var McpReviewRepository = class _McpReviewRepository {
   constructor(repository, gitPath = "git") {
@@ -35031,6 +35032,15 @@ function toErrorMessage(error62) {
 }
 
 // src/reviewServer.ts
+var absoluteRepositoryRootSchema = external_exports.string().min(1).refine((value) => import_node_path4.default.isAbsolute(value), {
+  message: "Repository root must be an absolute path."
+});
+var nonBlankStringSchema = external_exports.string().min(1).refine((value) => value.trim().length > 0, {
+  message: "Value must contain non-whitespace characters."
+});
+var repositoryRelativePathSchema = external_exports.string().min(1).refine(isRepositoryRelativePath, {
+  message: "File path must be repository-relative."
+});
 function createReviewServer(repositoryFactory = (repositoryRoot) => McpReviewRepository.fromWorkingDirectory(repositoryRoot)) {
   const server = new McpServer({
     name: "revloop",
@@ -35045,11 +35055,13 @@ function createReviewServer(repositoryFactory = (repositoryRoot) => McpReviewRep
       title: "Read Revloop comments",
       description: "Read Revloop review threads for the current repository and branch. Defaults to open threads only.",
       inputSchema: external_exports.object({
-        repositoryRoot: external_exports.string().min(1).describe("Absolute path to the current Git repository root."),
+        repositoryRoot: absoluteRepositoryRootSchema.describe(
+          "Absolute path to the current Git repository root."
+        ),
         status: external_exports.enum(["open", "outdated", "resolved", "unresolved", "all"]).optional().describe(
           "Thread status to return. Unresolved includes open and outdated threads. Defaults to open."
         ),
-        filePath: external_exports.string().optional().describe("Optional repository-relative file path filter.")
+        filePath: repositoryRelativePathSchema.optional().describe("Optional repository-relative file path filter.")
       }),
       annotations: {
         readOnlyHint: true,
@@ -35064,9 +35076,11 @@ function createReviewServer(repositoryFactory = (repositoryRoot) => McpReviewRep
       title: "Reply to a Revloop comment",
       description: "Append an agent reply describing what changed, answering the question, declining the request, or explaining a blocker. This tool never resolves or reopens the thread; only the user controls resolution.",
       inputSchema: external_exports.object({
-        repositoryRoot: external_exports.string().min(1).describe("Absolute path to the current Git repository root."),
-        threadId: external_exports.string().min(1).describe("Stable Revloop thread ID."),
-        body: external_exports.string().min(1).describe("Detailed reply for the reviewer."),
+        repositoryRoot: absoluteRepositoryRootSchema.describe(
+          "Absolute path to the current Git repository root."
+        ),
+        threadId: nonBlankStringSchema.describe("Stable Revloop thread ID."),
+        body: nonBlankStringSchema.describe("Detailed reply for the reviewer."),
         outcome: external_exports.enum(["changed", "answered", "declined", "blocked"]).optional().describe("Optional summary of how the comment was handled.")
       }),
       annotations: {
@@ -35113,6 +35127,14 @@ function createReviewToolHandlers(getRepository) {
       });
     }
   };
+}
+function isRepositoryRelativePath(value) {
+  try {
+    normalizeRepositoryRelativePath(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 function toAgentThread(thread) {
   const anchor2 = thread.currentAnchor ?? thread.originalAnchor;

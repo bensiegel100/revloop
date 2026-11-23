@@ -28,6 +28,16 @@
       "dependsOn": ["build"],
       "outputs": ["coverage/**"]
     },
+    "test:fuzz": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": [
+        "REVLOOP_FUZZ_RUNS",
+        "REVLOOP_FUZZ_SEED",
+        "REVLOOP_FUZZ_PATH"
+      ],
+      "outputs": []
+    },
     "clean": {
       "cache": false
     }

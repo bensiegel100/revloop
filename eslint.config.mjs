@@ -11,18 +11,18 @@ const codeFiles = [
   "eslint.config.mjs",
   "scripts/**/*.{js,mjs,cjs}",
   "types/**/*.ts",
-  "{shared,vscode,mcp}/**/*.{ts,js,mjs,cjs}",
+  "{fuzz,shared,vscode,mcp}/**/*.{ts,js,mjs,cjs}",
 ];
-const typeScriptFiles = ["types/**/*.ts", "{shared,vscode,mcp}/**/*.ts"];
+const typeScriptFiles = ["types/**/*.ts", "{fuzz,shared,vscode,mcp}/**/*.ts"];
 const typeCheckedFiles = [
   ...typeScriptFiles,
   "eslint.config.mjs",
   "scripts/**/*.mjs",
   "{shared,vscode,mcp}/esbuild.mjs",
 ];
-const vitestFiles = ["{shared,vscode,mcp}/test/**/*.test.ts"];
+const vitestFiles = ["{fuzz,shared,vscode,mcp}/test/**/*.test.ts"];
 const node20RuntimeFiles = ["shared/src/**/*.ts", "mcp/src/**/*.ts"];
-const node22RuntimeFiles = ["vscode/src/**/*.ts"];
+const node22RuntimeFiles = ["fuzz/src/**/*.ts", "vscode/src/**/*.ts"];
 const nodeModuleFiles = [
   "eslint.config.mjs",
   "scripts/**/*.{js,mjs}",
