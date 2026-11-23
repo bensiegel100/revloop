@@ -17,11 +17,13 @@ const serverWorkingDirectory = await mkdtemp(
   path.join(os.tmpdir(), "revloop-mcp-extension-"),
 );
 const inheritedGitEnvironment = clearRepositoryGitEnvironment();
+const vscodeVersion = process.env.REVLOOP_VSCODE_TEST_VERSION;
 
 try {
   await initializeRepository(repositoryRoot);
   const canonicalRepositoryRoot = await realpath(repositoryRoot);
   await runTests({
+    ...(vscodeVersion === undefined ? {} : { version: vscodeVersion }),
     extensionDevelopmentPath: extensionRoot,
     extensionTestsPath: path.join(directory, "suite.cjs"),
     extensionTestsEnv: {

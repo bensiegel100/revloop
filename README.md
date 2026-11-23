@@ -14,35 +14,35 @@ plugin/  Portable Agent Plugins bundle with MCP configuration and skill
 
 The repository uses npm workspaces and Turborepo.
 
-## User setup
+## Installation
 
-### 1. Install the VS Code extension
+### VS Code extension
 
-From the repository root:
-
-```bash
-npm run install:vscode
-```
-
-Reload VS Code, then open the **Revloop** activity-bar view.
-
-### 2. Install the agent plugin
+Install
+[Revloop from the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bensiegel.revloop)
+or run:
 
 ```bash
-npm run install:plugin
+code --install-extension bensiegel.revloop
 ```
 
-The installer registers this checkout as the local `revloop` marketplace and installs `revloop@revloop` without copying the plugin. With GitHub Copilot CLI, restart the CLI after first installation. The plugin follows Agent Plugins 1.0 and contributes:
+Open the **Revloop** activity-bar view after installation.
+
+### Agent plugin
+
+The extension works independently for manual review. To let GitHub Copilot CLI
+read comments and append replies, install the companion plugin:
+
+```bash
+copilot plugin marketplace add bensiegel100/revloop
+copilot plugin install revloop@revloop
+```
+
+Restart Copilot CLI after the first installation. The plugin follows Agent
+Plugins 1.0 and contributes:
 
 - MCP tools `read_comments` and `reply_to_comment`;
 - the `/review-comments` skill.
-
-After publishing the repository, register its marketplace and install the plugin:
-
-```bash
-copilot plugin marketplace add OWNER/REPOSITORY
-copilot plugin install revloop@revloop
-```
 
 ## Review workflow
 
@@ -80,4 +80,13 @@ npm run test:fuzz
 npm run package:vscode
 ```
 
+Install development builds locally with:
+
+```bash
+npm run install:vscode
+npm run install:plugin
+```
+
 The MCP server requires Node.js 20 or later on `PATH`.
+
+See [RELEASING.md](RELEASING.md) for the release process.

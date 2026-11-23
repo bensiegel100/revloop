@@ -30,10 +30,12 @@ jobs:
         run: npm run test:extension
       - name: Package platform VSIX
         run: npm run package:vscode
+      - id: vscode-artifact
+        run: node scripts/vscode-artifact.mjs github-output
       - uses: actions/upload-artifact@v4
         with:
           name: revloop-${{ runner.os }}-${{ runner.arch }}
-          path: revloop-0.0.1.vsix
+          path: ${{ steps.vscode-artifact.outputs.artifact_path }}
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
         with:

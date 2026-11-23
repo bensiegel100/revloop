@@ -1,0 +1,73 @@
+name: Bug report
+description: Report a reproducible problem with the Revloop extension or agent plugin.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Revloop. Remove secrets, credentials, private source code, and other sensitive information before submitting.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest sequence of steps that reproduces the problem.
+      placeholder: |
+        1. Open a Git repository...
+        2. Start a working-tree review...
+        3. Select...
+    validations:
+      required: true
+  - type: dropdown
+    id: review-type
+    attributes:
+      label: Review type
+      options:
+        - Working tree
+        - Branch against base
+        - Agent plugin
+        - Not applicable
+    validations:
+      required: true
+  - type: input
+    id: revloop-version
+    attributes:
+      label: Revloop version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version
+      placeholder: 1.101.0
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      placeholder: macOS 27, Windows 11, Ubuntu 26.04
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Include sanitized Revloop output or error messages, if available.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues for duplicates.
+          required: true
+        - label: I removed secrets and private information from this report.
+          required: true

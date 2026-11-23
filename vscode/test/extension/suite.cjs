@@ -5,7 +5,7 @@ const vscode = require("vscode");
 
 async function run() {
   const repositoryRoot = await getRepositoryRoot();
-  const extension = vscode.extensions.getExtension("revloop.revloop");
+  const extension = vscode.extensions.getExtension("bensiegel.revloop");
   assert.ok(extension, "The development extension was not discovered.");
 
   await extension.activate();

@@ -1,24 +1,53 @@
 {
   "name": "revloop",
   "displayName": "Revloop",
-  "description": "Review local agent changes with persistent inline threads in native VS Code diffs.",
-  "version": "0.0.1",
-  "publisher": "revloop",
+  "description": "Review local coding-agent changes with persistent inline threads in native VS Code diffs.",
+  "version": "0.1.0",
+  "preview": true,
+  "publisher": "bensiegel",
   "private": true,
   "type": "module",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bensiegel100/revloop.git",
+    "directory": "vscode"
+  },
+  "homepage": "https://github.com/bensiegel100/revloop",
+  "bugs": {
+    "url": "https://github.com/bensiegel100/revloop/issues"
+  },
+  "qna": "https://github.com/bensiegel100/revloop/issues",
+  "icon": "media/revloop.png",
+  "galleryBanner": {
+    "color": "#3A326E",
+    "theme": "dark"
+  },
   "engines": {
-    "vscode": "^1.106.0"
+    "vscode": "^1.101.0"
   },
   "categories": [
-    "Other",
-    "SCM Providers"
+    "SCM Providers",
+    "Other"
   ],
   "keywords": [
+    "ai",
+    "agent",
+    "agent plugins",
+    "branch review",
+    "code review",
+    "coding agent",
+    "comments",
     "copilot",
-    "review",
     "diff",
-    "comments"
+    "feedback",
+    "git",
+    "inline comments",
+    "local review",
+    "mcp",
+    "review",
+    "review comments",
+    "working tree"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -212,7 +241,7 @@
     "test:coverage": "vitest run --config ../vitest.config.mts --root . --coverage",
     "test:extension": "npm run build --workspace @revloop/shared && npm run build --workspace @revloop/mcp && npm run build && node test/extension/run.mjs",
     "vscode:prepublish": "npm run build",
-    "package": "vsce package --no-dependencies --allow-missing-repository --out ../revloop-0.0.1.vsix"
+    "package": "node ../scripts/vscode-artifact.mjs package"
   },
   "devDependencies": {
     "@revloop/shared": "0.0.1"

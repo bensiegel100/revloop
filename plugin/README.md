@@ -5,16 +5,17 @@ This portable Agent Plugins 1.0 bundle includes:
 - the Revloop MCP server;
 - the `/review-comments` skill.
 
-Install locally with GitHub Copilot CLI:
+Install from the public Revloop marketplace with GitHub Copilot CLI:
+
+```bash
+copilot plugin marketplace add bensiegel100/revloop
+copilot plugin install revloop@revloop
+```
+
+For development, install the current checkout from the monorepo root:
 
 ```bash
 npm run install:plugin
-```
-
-After the repository is pushed, install directly from its plugin subdirectory:
-
-```bash
-copilot plugin install OWNER/REPOSITORY:plugin
 ```
 
 Invoke the review workflow:
