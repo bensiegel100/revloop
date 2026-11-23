@@ -7,6 +7,7 @@ import {
   ConcurrentReviewStateError,
   JsonReviewStore,
 } from "../../src/storage/jsonReviewStore.js";
+import { parseBranchReviewState } from "../../src/storage/schema.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -63,6 +64,97 @@ describe("JSON review store migration", () => {
       throw new Error("Migrated repository identity is invalid.");
     }
     expect(persisted.repository.storageRoot).toBe(storageRoot);
+  });
+});
+
+describe("JSON review store validation", () => {
+  it("preserves defined optional values", () => {
+    const repository = createRepository("/tmp/revloop");
+    const state = createLegacyState(repository, "refs/heads/main");
+    const thread = state.threads[0];
+    const historyEntry = thread?.anchorHistory[0];
+    const message = thread?.messages[0];
+    const range = historyEntry?.toRange;
+    if (
+      thread === undefined ||
+      historyEntry === undefined ||
+      message === undefined ||
+      range === undefined
+    ) {
+      throw new Error("Expected a complete review thread.");
+    }
+    Reflect.set(thread, "resolvedAt", state.updatedAt);
+    Reflect.set(historyEntry, "fromRange", range);
+    Reflect.set(historyEntry, "confidence", 0.5);
+    Reflect.set(historyEntry, "reason", "Moved with the selected code.");
+    Reflect.set(message, "outcome", "answered");
+
+    expect(parseBranchReviewState(state, repository).threads[0]).toMatchObject({
+      resolvedAt: state.updatedAt,
+      anchorHistory: [
+        {
+          fromRange: range,
+          confidence: 0.5,
+          reason: "Moved with the selected code.",
+        },
+      ],
+      messages: [{ outcome: "answered" }],
+    });
+  });
+
+  it("rejects non-finite optional numbers", () => {
+    const repository = createRepository("/tmp/revloop");
+    const state = createLegacyState(repository, "refs/heads/main");
+    const historyEntry = state.threads[0]?.anchorHistory[0];
+    if (historyEntry === undefined) {
+      throw new Error("Expected an anchor history entry.");
+    }
+    Reflect.set(historyEntry, "confidence", Number.NaN);
+
+    expect(() => parseBranchReviewState(state, repository)).toThrow(
+      "review state.threads[0].anchorHistory[0].confidence",
+    );
+  });
+
+  it("strips unknown fields and rejects explicitly undefined optionals", () => {
+    const repository = createRepository("/tmp/revloop");
+    const state = createLegacyState(repository, "refs/heads/main");
+    const message = state.threads[0]?.messages[0];
+    if (message === undefined) {
+      throw new Error("Expected a review message.");
+    }
+    Reflect.set(message, "unexpected", true);
+
+    const parsed = parseBranchReviewState(state, repository);
+    expect(parsed.threads[0]?.messages[0]).not.toHaveProperty("unexpected");
+
+    Reflect.set(message, "outcome", undefined);
+    expect(() => parseBranchReviewState(state, repository)).toThrow(
+      "review state.threads[0].messages[0].outcome",
+    );
+  });
+
+  it("rejects malformed containers and required fields", () => {
+    const repository = createRepository("/tmp/revloop");
+    expect(() => parseBranchReviewState(null, repository)).toThrow(
+      "Invalid review state at review state.",
+    );
+
+    const wrongVersion = createLegacyState(repository, "refs/heads/main");
+    Reflect.set(wrongVersion, "schemaVersion", 2);
+    expect(() => parseBranchReviewState(wrongVersion, repository)).toThrow(
+      "review state.schemaVersion",
+    );
+
+    const noMessages = createLegacyState(repository, "refs/heads/main");
+    const thread = noMessages.threads[0];
+    if (thread === undefined) {
+      throw new Error("Expected a review thread.");
+    }
+    thread.messages.splice(0);
+    expect(() => parseBranchReviewState(noMessages, repository)).toThrow(
+      "review state.threads[0].messages",
+    );
   });
 });
 

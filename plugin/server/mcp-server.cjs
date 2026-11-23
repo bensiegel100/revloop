@@ -29700,8 +29700,8 @@ var require_multipleOf = /* @__PURE__ */ __commonJSMin(((exports2) => {
       const { gen, data, schemaCode, it } = cxt;
       const prec = it.opts.multipleOfPrecision;
       const res = gen.let("res");
-      const invalid = prec ? (0, codegen_1._)`Math.abs(Math.round(${res}) - ${res}) > 1e-${prec}` : (0, codegen_1._)`${res} !== parseInt(${res})`;
-      cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data}/${schemaCode}, ${invalid}))`);
+      const invalid2 = prec ? (0, codegen_1._)`Math.abs(Math.round(${res}) - ${res}) > 1e-${prec}` : (0, codegen_1._)`${res} !== parseInt(${res})`;
+      cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data}/${schemaCode}, ${invalid2}))`);
     }
   };
   exports2.default = def;
@@ -34547,77 +34547,213 @@ var import_node_os = require("node:os");
 var import_node_path2 = __toESM(require("node:path"), 1);
 
 // ../shared/dist/storage/schema.js
-var positionSchema = external_exports.object({
-  line: external_exports.number().int().nonnegative(),
-  character: external_exports.number().int().nonnegative()
-});
-var rangeSchema = external_exports.object({
-  start: positionSchema,
-  end: positionSchema
-});
-var repositoryIdentitySchema = external_exports.object({
-  key: external_exports.string().min(1),
-  rootPath: external_exports.string().min(1),
-  displayName: external_exports.string().min(1),
-  storageRoot: external_exports.string().min(1).optional()
-});
-var anchorSchema = external_exports.object({
-  filePath: external_exports.string().min(1),
-  range: rangeSchema,
-  selectedText: external_exports.string(),
-  beforeContext: external_exports.array(external_exports.string()),
-  afterContext: external_exports.array(external_exports.string()),
-  contentHash: external_exports.string().min(1),
-  capturedAt: external_exports.string().min(1)
-});
-var anchorHistorySchema = external_exports.object({
-  kind: external_exports.enum(["created", "edited", "remapped", "outdated"]),
-  at: external_exports.string().min(1),
-  fromRange: rangeSchema.optional(),
-  toRange: rangeSchema.optional(),
-  confidence: external_exports.number().min(0).max(1).optional(),
-  reason: external_exports.string().min(1).optional()
-});
-var diffContextSchema = external_exports.object({
-  header: external_exports.string(),
-  hunk: external_exports.string(),
-  oldStart: external_exports.number().int().nonnegative(),
-  oldLines: external_exports.number().int().nonnegative(),
-  newStart: external_exports.number().int().nonnegative(),
-  newLines: external_exports.number().int().nonnegative()
-});
-var reviewMessageSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  author: external_exports.enum(["user", "agent"]),
-  body: external_exports.string().min(1),
-  createdAt: external_exports.string().min(1),
-  outcome: external_exports.enum(["changed", "answered", "declined", "blocked"]).optional()
-});
-var reviewThreadSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  repositoryKey: external_exports.string().min(1),
-  branch: external_exports.string().min(1),
-  filePath: external_exports.string().min(1),
-  languageId: external_exports.string().min(1),
-  status: external_exports.enum(["open", "outdated", "resolved"]),
-  originalAnchor: anchorSchema,
-  currentAnchor: anchorSchema.nullable(),
-  anchorHistory: external_exports.array(anchorHistorySchema),
-  diffContext: diffContextSchema,
-  messages: external_exports.array(reviewMessageSchema).min(1),
-  createdAt: external_exports.string().min(1),
-  updatedAt: external_exports.string().min(1),
-  resolvedAt: external_exports.string().min(1).optional()
-});
-var branchReviewStateSchema = external_exports.object({
-  schemaVersion: external_exports.literal(branchStateSchemaVersion),
-  revision: external_exports.number().int().nonnegative(),
-  repository: repositoryIdentitySchema,
-  branch: external_exports.string().min(1),
-  threads: external_exports.array(reviewThreadSchema),
-  createdAt: external_exports.string().min(1),
-  updatedAt: external_exports.string().min(1)
-});
+var anchorHistoryKinds = [
+  "created",
+  "edited",
+  "remapped",
+  "outdated"
+];
+var reviewAuthors = ["user", "agent"];
+var reviewThreadStatuses = ["open", "outdated", "resolved"];
+var agentReplyOutcomes = [
+  "changed",
+  "answered",
+  "declined",
+  "blocked"
+];
+function parseBranchReviewState(value, repository) {
+  const record2 = parseRecord(value, "review state");
+  validateStoredRepository(record2.repository, "review state.repository");
+  return {
+    schemaVersion: parseSchemaVersion(record2.schemaVersion, "review state.schemaVersion"),
+    revision: parseNonnegativeInteger(record2.revision, "review state.revision"),
+    repository,
+    branch: parseNonEmptyString(record2.branch, "review state.branch"),
+    threads: parseArray(record2.threads, "review state.threads", parseReviewThread),
+    createdAt: parseNonEmptyString(record2.createdAt, "review state.createdAt"),
+    updatedAt: parseNonEmptyString(record2.updatedAt, "review state.updatedAt")
+  };
+}
+function validateStoredRepository(value, path5) {
+  const record2 = parseRecord(value, path5);
+  parseNonEmptyString(record2.key, `${path5}.key`);
+  parseNonEmptyString(record2.rootPath, `${path5}.rootPath`);
+  parseNonEmptyString(record2.displayName, `${path5}.displayName`);
+  parseOptional(record2, "storageRoot", path5, parseNonEmptyString);
+}
+function parseReviewThread(value, path5) {
+  const record2 = parseRecord(value, path5);
+  const resolvedAt = parseOptional(record2, "resolvedAt", path5, parseNonEmptyString);
+  const messages = parseArray(record2.messages, `${path5}.messages`, parseReviewMessage);
+  if (messages.length === 0) {
+    invalid(`${path5}.messages`);
+  }
+  const thread = {
+    id: parseNonEmptyString(record2.id, `${path5}.id`),
+    repositoryKey: parseNonEmptyString(record2.repositoryKey, `${path5}.repositoryKey`),
+    branch: parseNonEmptyString(record2.branch, `${path5}.branch`),
+    filePath: parseNonEmptyString(record2.filePath, `${path5}.filePath`),
+    languageId: parseNonEmptyString(record2.languageId, `${path5}.languageId`),
+    status: parseEnum(record2.status, reviewThreadStatuses, `${path5}.status`),
+    originalAnchor: parseAnchor(record2.originalAnchor, `${path5}.originalAnchor`),
+    currentAnchor: record2.currentAnchor === null ? null : parseAnchor(record2.currentAnchor, `${path5}.currentAnchor`),
+    anchorHistory: parseArray(record2.anchorHistory, `${path5}.anchorHistory`, parseAnchorHistoryEntry),
+    diffContext: parseDiffContext(record2.diffContext, `${path5}.diffContext`),
+    messages,
+    createdAt: parseNonEmptyString(record2.createdAt, `${path5}.createdAt`),
+    updatedAt: parseNonEmptyString(record2.updatedAt, `${path5}.updatedAt`)
+  };
+  if (resolvedAt !== void 0) {
+    thread.resolvedAt = resolvedAt;
+  }
+  return thread;
+}
+function parseAnchor(value, path5) {
+  const record2 = parseRecord(value, path5);
+  return {
+    filePath: parseNonEmptyString(record2.filePath, `${path5}.filePath`),
+    range: parseRange(record2.range, `${path5}.range`),
+    selectedText: parseString(record2.selectedText, `${path5}.selectedText`),
+    beforeContext: parseArray(record2.beforeContext, `${path5}.beforeContext`, parseString),
+    afterContext: parseArray(record2.afterContext, `${path5}.afterContext`, parseString),
+    contentHash: parseNonEmptyString(record2.contentHash, `${path5}.contentHash`),
+    capturedAt: parseNonEmptyString(record2.capturedAt, `${path5}.capturedAt`)
+  };
+}
+function parseAnchorHistoryEntry(value, path5) {
+  const record2 = parseRecord(value, path5);
+  const fromRange = parseOptional(record2, "fromRange", path5, parseRange);
+  const toRange = parseOptional(record2, "toRange", path5, parseRange);
+  const confidence = parseOptional(record2, "confidence", path5, parseConfidence);
+  const reason = parseOptional(record2, "reason", path5, parseNonEmptyString);
+  const entry = {
+    kind: parseEnum(record2.kind, anchorHistoryKinds, `${path5}.kind`),
+    at: parseNonEmptyString(record2.at, `${path5}.at`)
+  };
+  if (fromRange !== void 0) {
+    entry.fromRange = fromRange;
+  }
+  if (toRange !== void 0) {
+    entry.toRange = toRange;
+  }
+  if (confidence !== void 0) {
+    entry.confidence = confidence;
+  }
+  if (reason !== void 0) {
+    entry.reason = reason;
+  }
+  return entry;
+}
+function parseDiffContext(value, path5) {
+  const record2 = parseRecord(value, path5);
+  return {
+    header: parseString(record2.header, `${path5}.header`),
+    hunk: parseString(record2.hunk, `${path5}.hunk`),
+    oldStart: parseNonnegativeInteger(record2.oldStart, `${path5}.oldStart`),
+    oldLines: parseNonnegativeInteger(record2.oldLines, `${path5}.oldLines`),
+    newStart: parseNonnegativeInteger(record2.newStart, `${path5}.newStart`),
+    newLines: parseNonnegativeInteger(record2.newLines, `${path5}.newLines`)
+  };
+}
+function parseReviewMessage(value, path5) {
+  const record2 = parseRecord(value, path5);
+  const outcome = parseOptional(record2, "outcome", path5, parseAgentReplyOutcome);
+  const message = {
+    id: parseNonEmptyString(record2.id, `${path5}.id`),
+    author: parseEnum(record2.author, reviewAuthors, `${path5}.author`),
+    body: parseNonEmptyString(record2.body, `${path5}.body`),
+    createdAt: parseNonEmptyString(record2.createdAt, `${path5}.createdAt`)
+  };
+  if (outcome !== void 0) {
+    message.outcome = outcome;
+  }
+  return message;
+}
+function parseAgentReplyOutcome(value, path5) {
+  return parseEnum(value, agentReplyOutcomes, path5);
+}
+function parseRange(value, path5) {
+  const record2 = parseRecord(value, path5);
+  return {
+    start: parsePosition(record2.start, `${path5}.start`),
+    end: parsePosition(record2.end, `${path5}.end`)
+  };
+}
+function parsePosition(value, path5) {
+  const record2 = parseRecord(value, path5);
+  return {
+    line: parseNonnegativeInteger(record2.line, `${path5}.line`),
+    character: parseNonnegativeInteger(record2.character, `${path5}.character`)
+  };
+}
+function parseRecord(value, path5) {
+  if (!isRecord(value)) {
+    return invalid(path5);
+  }
+  return value;
+}
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function parseArray(value, path5, parser) {
+  if (!Array.isArray(value)) {
+    return invalid(path5);
+  }
+  return value.map((item, index) => parser(item, `${path5}[${String(index)}]`));
+}
+function parseOptional(record2, key, path5, parser) {
+  if (!(key in record2)) {
+    return void 0;
+  }
+  const value = record2[key];
+  if (value === void 0) {
+    return invalid(`${path5}.${key}`);
+  }
+  return parser(value, `${path5}.${key}`);
+}
+function parseString(value, path5) {
+  if (typeof value !== "string") {
+    return invalid(path5);
+  }
+  return value;
+}
+function parseNonEmptyString(value, path5) {
+  const parsed = parseString(value, path5);
+  if (parsed.length === 0) {
+    return invalid(path5);
+  }
+  return parsed;
+}
+function parseNonnegativeInteger(value, path5) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    return invalid(path5);
+  }
+  return value;
+}
+function parseConfidence(value, path5) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
+    return invalid(path5);
+  }
+  return value;
+}
+function parseSchemaVersion(value, path5) {
+  if (value !== branchStateSchemaVersion) {
+    return invalid(path5);
+  }
+  return value;
+}
+function parseEnum(value, allowedValues, path5) {
+  if (typeof value !== "string" || !isAllowedValue(value, allowedValues)) {
+    return invalid(path5);
+  }
+  return value;
+}
+function isAllowedValue(value, allowedValues) {
+  return allowedValues.some((allowedValue) => allowedValue === value);
+}
+function invalid(path5) {
+  throw new TypeError(`Invalid review state at ${path5}.`);
+}
 
 // ../shared/dist/storage/jsonReviewStore.js
 var defaultLockTimeoutMs = 5e3;
@@ -34672,7 +34808,7 @@ var JsonReviewStore = class {
     return this.withBranchLock(filePath, async () => {
       const current = await this.readJson(filePath);
       if (current !== void 0) {
-        const parsed = branchReviewStateSchema.parse(current);
+        const parsed = parseBranchReviewState(current, state.repository);
         if (parsed.revision !== expectedRevision) {
           throw new ConcurrentReviewStateError(filePath);
         }
@@ -34725,16 +34861,7 @@ var JsonReviewStore = class {
     return this.parseBranchState(raw, repository);
   }
   parseBranchState(raw, repository) {
-    const parsed = branchReviewStateSchema.parse(raw);
-    const threads = parsed.threads;
-    if (!haveExactOptionalProperties(threads)) {
-      throw new Error("Review state contains explicitly undefined optional properties.");
-    }
-    return {
-      ...parsed,
-      repository,
-      threads
-    };
+    return parseBranchReviewState(raw, repository);
   }
   async readJson(filePath) {
     try {
@@ -34847,12 +34974,6 @@ var JsonReviewStore = class {
     return true;
   }
 };
-function haveExactOptionalProperties(threads) {
-  return threads.every((thread) => isAbsentOrDefined(thread, "resolvedAt") && thread.messages.every((message) => isAbsentOrDefined(message, "outcome")) && thread.anchorHistory.every((entry) => isAbsentOrDefined(entry, "fromRange") && isAbsentOrDefined(entry, "toRange") && isAbsentOrDefined(entry, "confidence") && isAbsentOrDefined(entry, "reason")));
-}
-function isAbsentOrDefined(value, key) {
-  return !(key in value) || value[key] !== void 0;
-}
 function isErrnoException(error62) {
   return error62 instanceof Error && "code" in error62;
 }

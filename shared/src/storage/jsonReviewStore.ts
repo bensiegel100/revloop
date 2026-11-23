@@ -9,14 +9,10 @@ import {
 } from "node:fs/promises";
 import { hostname } from "node:os";
 import path from "node:path";
-import type {
-  BranchReviewState,
-  RepositoryIdentity,
-  ReviewThread,
-} from "../domain/types.js";
+import type { BranchReviewState, RepositoryIdentity } from "../domain/types.js";
 import { branchStateSchemaVersion } from "../domain/types.js";
 import { sha256 } from "../platform/hash.js";
-import { branchReviewStateSchema } from "./schema.js";
+import { parseBranchReviewState } from "./schema.js";
 
 const defaultLockTimeoutMs = 5_000;
 const defaultLockRetryDelayMs = 10;
@@ -34,10 +30,6 @@ interface LockOwner {
   hostname: string;
   createdAt: string;
 }
-
-type ParsedReviewThread = ReturnType<
-  typeof branchReviewStateSchema.parse
->["threads"][number];
 
 export class ConcurrentReviewStateError extends Error {
   public constructor(filePath: string) {
@@ -101,7 +93,7 @@ export class JsonReviewStore {
     return this.withBranchLock(filePath, async () => {
       const current = await this.readJson(filePath);
       if (current !== undefined) {
-        const parsed = branchReviewStateSchema.parse(current);
+        const parsed = parseBranchReviewState(current, state.repository);
         if (parsed.revision !== expectedRevision) {
           throw new ConcurrentReviewStateError(filePath);
         }
@@ -185,18 +177,7 @@ export class JsonReviewStore {
     raw: unknown,
     repository: RepositoryIdentity,
   ): BranchReviewState {
-    const parsed = branchReviewStateSchema.parse(raw);
-    const threads = parsed.threads;
-    if (!haveExactOptionalProperties(threads)) {
-      throw new Error(
-        "Review state contains explicitly undefined optional properties.",
-      );
-    }
-    return {
-      ...parsed,
-      repository,
-      threads,
-    };
+    return parseBranchReviewState(raw, repository);
   }
 
   private async readJson(filePath: string): Promise<unknown> {
@@ -340,29 +321,6 @@ export class JsonReviewStore {
     await rm(claimedPath, { recursive: true, force: true });
     return true;
   }
-}
-
-function haveExactOptionalProperties(
-  threads: ParsedReviewThread[],
-): threads is ReviewThread[] {
-  return threads.every(
-    (thread) =>
-      isAbsentOrDefined(thread, "resolvedAt") &&
-      thread.messages.every((message) =>
-        isAbsentOrDefined(message, "outcome"),
-      ) &&
-      thread.anchorHistory.every(
-        (entry) =>
-          isAbsentOrDefined(entry, "fromRange") &&
-          isAbsentOrDefined(entry, "toRange") &&
-          isAbsentOrDefined(entry, "confidence") &&
-          isAbsentOrDefined(entry, "reason"),
-      ),
-  );
-}
-
-function isAbsentOrDefined<T extends object>(value: T, key: keyof T): boolean {
-  return !(key in value) || value[key] !== undefined;
 }
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {

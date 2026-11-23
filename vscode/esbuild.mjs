@@ -3,16 +3,16 @@ import * as esbuild from "esbuild";
 const watch = process.argv.includes("--watch");
 
 const context = await esbuild.context({
-  entryPoints: ["src/extension.ts"],
+  entryPoints: ["src/extension.ts", "src/reviewController.ts"],
   bundle: true,
-  format: "cjs",
-  minify: false,
+  format: "esm",
+  minify: !watch,
   sourcemap: true,
   sourcesContent: false,
   platform: "node",
   target: "node22",
-  outfile: "dist/extension.js",
-  external: ["vscode"],
+  outdir: "dist",
+  external: ["vscode", "./reviewController.js"],
   logLevel: "info",
 });
 
