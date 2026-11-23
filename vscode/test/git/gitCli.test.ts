@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { parseUnifiedDiff } from "../../src/git/diffParser.js";
 import {
   discoverRepositoryIdentity,
+  listLocalBranchRefs,
   listTrackedChanges,
   listUntrackedFilePaths,
   readTrackedPatch,
@@ -175,6 +176,20 @@ describe("Git review snapshots", () => {
     expect(
       await listTrackedChanges("git", linkedIdentity.rootPath, head),
     ).toEqual([{ path: "mixed.txt", status: "modified" }]);
+  });
+
+  it("lists full local branch refs", async () => {
+    const repository = await createRepository();
+    const currentBranch = (
+      await git(repository, ["symbolic-ref", "--short", "HEAD"])
+    ).trim();
+    await git(repository, ["branch", "feature"]);
+
+    expect(await listLocalBranchRefs("git", repository)).toEqual(
+      [`refs/heads/${currentBranch}`, "refs/heads/feature"].sort(
+        (left, right) => left.localeCompare(right),
+      ),
+    );
   });
 
   async function createRepository(): Promise<string> {

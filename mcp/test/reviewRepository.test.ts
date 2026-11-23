@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -8,6 +8,7 @@ import {
   createReviewThread,
   JsonReviewStore,
   resolveThread,
+  sha256,
 } from "@revloop/shared";
 import type {
   AnchorSnapshot,
@@ -112,6 +113,50 @@ describe("MCP review repository", () => {
     expect(comments.repository.rootPath).toBe(await realpath(repositoryRoot));
     expect(comments.branch).toBe(`refs/heads/${branchName}`);
     expect(comments.threads).toEqual([]);
+  });
+
+  it("prunes review state for deleted local branches", async () => {
+    const repositoryRoot = await mkdtemp(path.join(tmpdir(), "revloop-mcp-"));
+    temporaryDirectories.push(repositoryRoot);
+    const branchName = "review-test";
+    const currentBranch = `refs/heads/${branchName}`;
+    const deletedBranch = "refs/heads/deleted";
+    await initializeRepository(repositoryRoot, branchName);
+    await execFileAsync("git", ["branch", "deleted"], {
+      cwd: repositoryRoot,
+    });
+
+    const repository = createRepositoryIdentity(repositoryRoot);
+    const store = new JsonReviewStore();
+    const currentState = await store.loadBranch(repository, currentBranch);
+    currentState.threads.push(
+      createThread(currentBranch, "current-thread", "Keep this."),
+    );
+    await store.saveBranch(currentState, currentState.revision);
+    const deletedState = await store.loadBranch(repository, deletedBranch);
+    deletedState.threads.push(
+      createThread(deletedBranch, "deleted-thread", "Remove this."),
+    );
+    await store.saveBranch(deletedState, deletedState.revision);
+    const deletedFile = path.join(
+      repository.storageRoot,
+      "branches",
+      `${sha256(deletedBranch)}.json`,
+    );
+    await execFileAsync("git", ["branch", "--delete", "--force", "deleted"], {
+      cwd: repositoryRoot,
+    });
+
+    const comments = await new McpReviewRepository(repository).readComments(
+      "all",
+    );
+
+    expect(comments.threads.map((thread) => thread.id)).toEqual([
+      "current-thread",
+    ]);
+    await expect(readFile(deletedFile, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   });
 
   it("rejects repositories without a checked-out branch", async () => {

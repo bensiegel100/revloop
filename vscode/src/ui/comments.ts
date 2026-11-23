@@ -220,6 +220,15 @@ export class ReviewComments implements vscode.Disposable {
     await this.repository.reopen(threadId);
   }
 
+  public expand(threadId: string): void {
+    const commentThread = this.threadsById.get(threadId);
+    if (commentThread === undefined) {
+      throw new Error(`Unknown review thread: ${threadId}`);
+    }
+    commentThread.collapsibleState =
+      vscode.CommentThreadCollapsibleState.Expanded;
+  }
+
   public async reveal(threadId: string): Promise<void> {
     const thread = this.repository.get(threadId);
     if (thread === undefined) {
@@ -241,8 +250,7 @@ export class ReviewComments implements vscode.Disposable {
       selection: target.range,
     });
     if (commentThread !== undefined) {
-      commentThread.collapsibleState =
-        vscode.CommentThreadCollapsibleState.Expanded;
+      this.expand(threadId);
     }
   }
 

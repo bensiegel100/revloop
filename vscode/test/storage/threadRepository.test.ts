@@ -206,6 +206,7 @@ describe("thread repository", () => {
     const state = createState(repositoryIdentity, "refs/heads/main", 0, []);
     const store = {
       loadBranch: vi.fn(() => Promise.resolve(structuredClone(state))),
+      pruneBranchStates: vi.fn(() => Promise.resolve()),
       saveBranch: vi.fn(() =>
         Promise.reject(
           new ConcurrentReviewStateError("/workspace/review.json"),
@@ -302,6 +303,7 @@ describe("thread repository", () => {
           });
         },
       ),
+      pruneBranchStates: vi.fn(() => Promise.resolve()),
       saveBranch: vi.fn(),
     };
     const threads = new ThreadRepository(store);

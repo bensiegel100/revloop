@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { resolveRepositoryPath } from "@revloop/shared";
 import type { ReviewSource, ReviewThread } from "@revloop/shared";
 import { AnchorManager } from "./anchors/anchorManager.js";
 import type { AnchorThreadRepository } from "./anchors/anchorManager.js";
@@ -19,12 +20,13 @@ type ReviewControllerGitService = Pick<
   | "createBranchSource"
   | "createWorkingTreeSource"
   | "initialize"
+  | "listLocalBranchRefs"
   | "readCurrentHead"
   | "selectRepository"
 >;
 type ReviewControllerThreadRepository = Pick<
   ThreadRepository,
-  "get" | "isCurrent" | "list" | "open" | "suspend"
+  "get" | "isCurrent" | "list" | "open" | "pruneBranchStates" | "suspend"
 > &
   AnchorThreadRepository &
   ReviewCommentsRepository &
@@ -111,6 +113,7 @@ export class ReviewController implements vscode.Disposable {
       active.branchName = head.branchName;
       active.branch = branch;
       active.headCommit = head.headCommit;
+      await this.pruneDeletedBranchReviews(active);
 
       if (branchChanged || !this.reviewEnabled) {
         const activated = await this.activateReview(active);
@@ -189,42 +192,38 @@ export class ReviewController implements vscode.Disposable {
           vscode.TextEditorRevealType.InCenter,
         );
       }
+      this.requireComments().expand(thread.id);
     } else {
       await this.requireComments().reveal(thread.id);
     }
   }
 
   public async openFile(argument: unknown): Promise<void> {
-    if (argument instanceof ReviewFileItem) {
-      const targets = createReviewFileTargets(argument);
-      const target =
-        targets.length === 1
-          ? targets[0]
-          : await vscode.window.showQuickPick(targets, {
-              placeHolder: "Open the file or a review thread",
-            });
-      if (target === undefined) {
-        return;
-      }
-      if (target.file !== undefined) {
-        await this.openDiff(target.file);
-        return;
-      }
-      if (target.thread !== undefined) {
-        await this.openThread(target.thread.id);
-        return;
-      }
-    }
-
+    const item = argument instanceof ReviewFileItem ? argument : undefined;
     const file =
-      typeof argument === "string"
+      item?.file ??
+      (typeof argument === "string"
         ? this.snapshot?.files.find((candidate) => candidate.path === argument)
-        : undefined;
-    if (file === undefined) {
-      throw new Error("No review file was supplied.");
+        : undefined);
+    if (file !== undefined) {
+      await this.openDiff(file);
+      return;
     }
 
-    await this.openDiff(file);
+    if (item !== undefined) {
+      const document = await vscode.workspace.openTextDocument(
+        vscode.Uri.file(
+          resolveRepositoryPath(
+            this.threads.repository.rootPath,
+            item.filePath,
+          ),
+        ),
+      );
+      await vscode.window.showTextDocument(document, { preview: true });
+      return;
+    }
+
+    throw new Error("No review file was supplied.");
   }
 
   public async openDiff(file: ReviewFile): Promise<void> {
@@ -269,6 +268,7 @@ export class ReviewController implements vscode.Disposable {
       },
     );
 
+    await this.pruneDeletedBranchReviews(active);
     await this.activateReview(active);
   }
 
@@ -340,6 +340,14 @@ export class ReviewController implements vscode.Disposable {
     this.context.subscriptions.push(this.anchors, this.comments);
     await this.anchors.remapAll();
     return this.isReviewGenerationActive(generation);
+  }
+
+  private async pruneDeletedBranchReviews(
+    active: ActiveRepository,
+  ): Promise<void> {
+    const branches = new Set(await this.git.listLocalBranchRefs(active));
+    branches.add(active.branch);
+    await this.threads.pruneBranchStates(active.identity, [...branches]);
   }
 
   private beginReviewTransition(): number {
@@ -428,43 +436,6 @@ function resolveThreadArgument(
     }
   }
   return undefined;
-}
-
-interface ReviewFileTarget extends vscode.QuickPickItem {
-  readonly file?: ReviewFile;
-  readonly thread?: ReviewThread;
-}
-
-export function createReviewFileTargets(
-  item: Pick<ReviewFileItem, "file" | "threads">,
-): ReviewFileTarget[] {
-  const targets: ReviewFileTarget[] = [];
-  if (item.file !== undefined) {
-    targets.push({
-      label: "$(diff) Open changed file",
-      description: item.file.status,
-      detail: item.file.path,
-      file: item.file,
-    });
-  }
-
-  for (const thread of item.threads) {
-    const anchor = thread.currentAnchor ?? thread.originalAnchor;
-    targets.push({
-      label: `$(comment-discussion) ${firstLine(
-        thread.messages[0]?.body ?? "Review thread",
-      )}`,
-      description: thread.status,
-      detail: `${thread.filePath}:${String(anchor.range.start.line + 1)}`,
-      thread,
-    });
-  }
-  return targets;
-}
-
-function firstLine(value: string): string {
-  const line = value.split(/\r?\n/, 1)[0] ?? value;
-  return line.length > 80 ? `${line.slice(0, 77)}...` : line;
 }
 
 function showError(error: unknown): void {

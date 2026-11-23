@@ -32,15 +32,16 @@ Reload VS Code, then open the **Revloop** activity-bar view.
 npm run install:plugin
 ```
 
-The plugin follows Agent Plugins 1.0. With GitHub Copilot CLI, restart the CLI after first installation. The installed plugin is named `revloop` and contributes:
+The installer registers this checkout as the local `revloop` marketplace and installs `revloop@revloop` without copying the plugin. With GitHub Copilot CLI, restart the CLI after first installation. The plugin follows Agent Plugins 1.0 and contributes:
 
 - MCP tools `read_comments` and `reply_to_comment`;
 - the `/review-comments` skill.
 
-After publishing the repository, it can also be installed directly:
+After publishing the repository, register its marketplace and install the plugin:
 
 ```bash
-copilot plugin install OWNER/REPOSITORY:plugin
+copilot plugin marketplace add OWNER/REPOSITORY
+copilot plugin install revloop@revloop
 ```
 
 ## Review workflow

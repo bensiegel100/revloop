@@ -34623,6 +34623,7 @@ var branchReviewStateSchema = external_exports.object({
 var defaultLockTimeoutMs = 5e3;
 var defaultLockRetryDelayMs = 10;
 var lockOwnerFileName = "owner.json";
+var branchStateFileNamePattern = /^[a-f0-9]{64}\.json$/u;
 var ConcurrentReviewStateError = class extends Error {
   constructor(filePath) {
     super(`Review state changed in another VS Code window: ${filePath}`);
@@ -34686,6 +34687,28 @@ var JsonReviewStore = class {
       await this.atomicWrite(filePath, next);
       return next;
     });
+  }
+  async pruneBranchStates(repository, retainedBranches) {
+    const directory = import_node_path2.default.join(repository.storageRoot, "branches");
+    let entries;
+    try {
+      entries = await (0, import_promises.readdir)(directory);
+    } catch (error62) {
+      if (isErrnoException(error62) && error62.code === "ENOENT") {
+        return;
+      }
+      throw error62;
+    }
+    const retainedFiles = new Set(retainedBranches.map((branch) => `${sha256(branch)}.json`));
+    for (const entry of entries) {
+      if (!branchStateFileNamePattern.test(entry) || retainedFiles.has(entry)) {
+        continue;
+      }
+      const filePath = import_node_path2.default.join(directory, entry);
+      await this.withBranchLock(filePath, async () => {
+        await (0, import_promises.rm)(filePath, { force: true });
+      });
+    }
   }
   branchFile(repository, branch) {
     return import_node_path2.default.join(repository.storageRoot, "branches", `${sha256(branch)}.json`);
@@ -34945,7 +34968,7 @@ var McpReviewRepository = class _McpReviewRepository {
     );
   }
   async readComments(status = "open", filePath) {
-    const branch = await this.currentBranch();
+    const branch = await this.currentBranchAndPrune();
     const state = await this.store.loadBranch(this.repository, branch);
     const normalizedPath = filePath === void 0 ? void 0 : normalizeRepositoryRelativePath(filePath);
     const threads = state.threads.filter(
@@ -34958,7 +34981,7 @@ var McpReviewRepository = class _McpReviewRepository {
     };
   }
   async replyToComment(threadId, body, outcome) {
-    const branch = await this.currentBranch();
+    const branch = await this.currentBranchAndPrune();
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const state = await this.store.loadBranch(this.repository, branch);
       const thread = state.threads.find(
@@ -35007,6 +35030,20 @@ var McpReviewRepository = class _McpReviewRepository {
         `Revloop MCP requires a checked-out Git branch: ${toErrorMessage(error62)}`
       );
     }
+  }
+  async currentBranchAndPrune() {
+    const branch = await this.currentBranch();
+    const output2 = await runGit(
+      this.gitPath,
+      ["for-each-ref", "--format=%(refname)", "refs/heads"],
+      this.repository.rootPath
+    );
+    const branches = new Set(
+      output2.split(/\r?\n/u).map((ref) => ref.trim()).filter((ref) => ref.startsWith("refs/heads/"))
+    );
+    branches.add(branch);
+    await this.store.pruneBranchStates(this.repository, [...branches]);
+    return branch;
   }
 };
 function configuredGitPath() {
@@ -35110,9 +35147,7 @@ function createReviewToolHandlers(getRepository) {
       const repository = await getRepository(repositoryRoot);
       const result = await repository.readComments(status ?? "open", filePath);
       return textResult({
-        repository: result.repository,
         branch: result.branch,
-        count: result.threads.length,
         threads: result.threads.map(toAgentThread)
       });
     },
@@ -35137,18 +35172,13 @@ function isRepositoryRelativePath(value) {
   }
 }
 function toAgentThread(thread) {
-  const anchor2 = thread.currentAnchor ?? thread.originalAnchor;
   return {
     id: thread.id,
     status: thread.status,
     filePath: thread.filePath,
-    languageId: thread.languageId,
-    currentRange: anchor2.range,
-    originalRange: thread.originalAnchor.range,
-    selectedExcerpt: anchor2.selectedText,
-    diffContext: thread.diffContext,
-    messages: thread.messages,
-    anchorHistory: thread.anchorHistory
+    currentRange: thread.currentAnchor?.range ?? null,
+    selectedText: thread.originalAnchor.selectedText,
+    messages: thread.messages
   };
 }
 function textResult(value) {

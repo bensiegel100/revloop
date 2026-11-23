@@ -66,7 +66,7 @@ export class McpReviewRepository {
     branch: string;
     threads: readonly ReviewThread[];
   }> {
-    const branch = await this.currentBranch();
+    const branch = await this.currentBranchAndPrune();
     const state = await this.store.loadBranch(this.repository, branch);
     const normalizedPath =
       filePath === undefined
@@ -92,7 +92,7 @@ export class McpReviewRepository {
     body: string,
     outcome?: AgentReplyOutcome,
   ): Promise<{ branch: string; thread: ReviewThread; replyId: string }> {
-    const branch = await this.currentBranch();
+    const branch = await this.currentBranchAndPrune();
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const state = await this.store.loadBranch(this.repository, branch);
@@ -147,6 +147,24 @@ export class McpReviewRepository {
         `Revloop MCP requires a checked-out Git branch: ${toErrorMessage(error)}`,
       );
     }
+  }
+
+  private async currentBranchAndPrune(): Promise<string> {
+    const branch = await this.currentBranch();
+    const output = await runGit(
+      this.gitPath,
+      ["for-each-ref", "--format=%(refname)", "refs/heads"],
+      this.repository.rootPath,
+    );
+    const branches = new Set(
+      output
+        .split(/\r?\n/u)
+        .map((ref) => ref.trim())
+        .filter((ref) => ref.startsWith("refs/heads/")),
+    );
+    branches.add(branch);
+    await this.store.pruneBranchStates(this.repository, [...branches]);
+    return branch;
   }
 }
 

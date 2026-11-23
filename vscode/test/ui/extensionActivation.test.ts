@@ -8,6 +8,7 @@ const reviewController = vi.hoisted(() => ({
   editComment: vi.fn(),
   initialize: vi.fn(),
   openFile: vi.fn(),
+  openThread: vi.fn(),
   refresh: vi.fn(),
   reopen: vi.fn(),
   reply: vi.fn(),
@@ -42,6 +43,7 @@ vi.mock("../../src/reviewController.js", () => ({
     public editComment = reviewController.editComment;
     public initialize = reviewController.initialize;
     public openFile = reviewController.openFile;
+    public openThread = reviewController.openThread;
     public refresh = reviewController.refresh;
     public reopen = reviewController.reopen;
     public reply = reviewController.reply;
@@ -79,6 +81,7 @@ describe("extension activation", () => {
       "revloop.cancelCommentEdit",
       "revloop.resolveThread",
       "revloop.reopenThread",
+      "revloop.openThread",
       "revloop.openFile",
       "revloop.refresh",
     ]) {
@@ -101,10 +104,12 @@ describe("extension activation", () => {
     );
     await vscode.commands.executeCommand("revloop.resolveThread", "thread");
     await vscode.commands.executeCommand("revloop.reopenThread", "thread");
+    await vscode.commands.executeCommand("revloop.openThread", "thread");
     await vscode.commands.executeCommand("revloop.openFile", "src/index.ts");
     await vscode.commands.executeCommand("revloop.refresh");
 
     expect(reviewController.reply).toHaveBeenCalledWith(reply);
+    expect(reviewController.openThread).toHaveBeenCalledWith("thread");
     expect(reviewController.refresh).toHaveBeenCalledOnce();
   });
 

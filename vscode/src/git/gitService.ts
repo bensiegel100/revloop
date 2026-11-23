@@ -6,6 +6,7 @@ import { collectBaseBranchCandidates } from "./branchCandidates.js";
 import { parseUnifiedDiff } from "./diffParser.js";
 import {
   discoverRepositoryIdentity,
+  listLocalBranchRefs,
   listTrackedChanges,
   listUntrackedFilePaths,
   readTrackedPatch,
@@ -108,6 +109,10 @@ export class GitService {
     active: ActiveRepository,
   ): Promise<{ branchName: string; headCommit: string }> {
     return readGitHead(active.api.git.path, active.identity.rootPath);
+  }
+
+  public listLocalBranchRefs(active: ActiveRepository): Promise<string[]> {
+    return listLocalBranchRefs(active.api.git.path, active.identity.rootPath);
   }
 
   public async chooseBaseBranch(

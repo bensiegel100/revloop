@@ -5,6 +5,7 @@ import type { ReviewSnapshot } from "../../src/git/types.js";
 import {
   ReviewDirectoryItem,
   ReviewFileItem,
+  ReviewThreadItem,
   ReviewTreeProvider,
 } from "../../src/ui/reviewTree.js";
 import type { ReviewTreeRepository } from "../../src/ui/reviewTree.js";
@@ -34,11 +35,30 @@ describe("review tree", () => {
     ).toMatchObject({ id: "diff-renamed" });
   });
 
-  it("preserves directories and makes files clickable leaves", () => {
+  it("nests clickable threads beneath clickable files", () => {
     let repositoryThreads = [
-      createThread("thread-1", "src/ui/comments.ts", "2026-01-01T00:00:00Z"),
-      createThread("thread-2", "archive/old.ts", "2026-01-01T00:01:00Z"),
-      createThread("thread-3", "archive/old.ts", "2026-01-01T00:02:00Z"),
+      createThread(
+        "thread-1",
+        "src/ui/comments.ts",
+        "2026-01-01T00:00:00Z",
+        "Clarify this comment behavior.",
+      ),
+      createThread(
+        "thread-2",
+        "archive/old.ts",
+        "2026-01-01T00:01:00Z",
+        "Keep the historical behavior.",
+        20,
+        null,
+      ),
+      createThread(
+        "thread-3",
+        "archive/old.ts",
+        "2026-01-01T00:02:00Z",
+        "Add coverage for this path.",
+        30,
+        5,
+      ),
     ];
     let changeListener:
       ((threads: readonly ReviewThread[]) => void) | undefined;
@@ -93,8 +113,22 @@ describe("review tree", () => {
         ? archiveChildren[0].threads
         : [],
     ).toHaveLength(2);
-    expect(archiveChildren[0]?.collapsibleState).toBe(0);
+    expect(archiveChildren[0]?.collapsibleState).toBe(
+      vscode.TreeItemCollapsibleState.Expanded,
+    );
     expect(archiveChildren[0]?.command?.command).toBe("revloop.openFile");
+    const archiveThreads = provider.getChildren(archiveChildren[0]);
+    expect(archiveThreads.map((item) => item.label)).toEqual([
+      "Add coverage for this path.",
+      "Keep the historical behavior.",
+    ]);
+    expect(
+      archiveThreads.every((item) => item instanceof ReviewThreadItem),
+    ).toBe(true);
+    expect(archiveThreads.map((item) => item.command?.command)).toEqual([
+      "revloop.openThread",
+      "revloop.openThread",
+    ]);
 
     const sourceChildren = provider.getChildren(root[1]);
     expect(sourceChildren.map((item) => item.label)).toEqual(["git", "ui"]);
@@ -106,9 +140,16 @@ describe("review tree", () => {
     expect(commentsFile?.label).toBe("comments.ts");
     expect(commentsFile?.tooltip).toBe("src/ui/comments.ts");
     expect(commentsFile?.description).toBe("1");
-    expect(commentsFile?.collapsibleState).toBe(0);
+    expect(commentsFile?.collapsibleState).toBe(
+      vscode.TreeItemCollapsibleState.Expanded,
+    );
     expect(commentsFile?.command?.command).toBe("revloop.openFile");
-    expect(provider.getChildren(commentsFile)).toEqual([]);
+    const commentThreads = provider.getChildren(commentsFile);
+    expect(commentThreads).toHaveLength(1);
+    expect(commentThreads[0]).toBeInstanceOf(ReviewThreadItem);
+    expect(commentThreads[0]?.label).toBe("Clarify this comment behavior.");
+    expect(commentThreads[0]?.command?.command).toBe("revloop.openThread");
+    expect(provider.getChildren(commentThreads[0])).toEqual([]);
 
     repositoryThreads = [];
     provider.refresh();
@@ -116,6 +157,29 @@ describe("review tree", () => {
     expect(provider.getChildren()).toHaveLength(2);
     provider.dispose();
     expect(subscriptionDisposed).toBe(true);
+  });
+
+  it("uses the first human comment as a truncated thread label", () => {
+    const body = "A".repeat(90);
+    const thread = createThread(
+      "thread-1",
+      "src/index.ts",
+      "2026-01-01T00:00:00Z",
+      body,
+    );
+    thread.messages.unshift({
+      id: "agent-message",
+      author: "agent",
+      body: "Agent response.",
+      createdAt: "2025-12-31T23:59:00Z",
+      outcome: "answered",
+    });
+
+    const item = new ReviewThreadItem(thread);
+
+    expect(item.label).toBe(`${"A".repeat(77)}...`);
+    expect(item.tooltip).toBe(body);
+    expect(item.command?.arguments).toEqual([item]);
   });
 });
 
@@ -141,12 +205,15 @@ function createThread(
   id: string,
   filePath: string,
   createdAt: string,
+  body = "Review this.",
+  originalLine = 0,
+  currentLine: number | null = originalLine,
 ): ReviewThread {
   const anchor = {
     filePath,
     range: {
-      start: { line: 0, character: 0 },
-      end: { line: 0, character: 1 },
+      start: { line: originalLine, character: 0 },
+      end: { line: originalLine, character: 1 },
     },
     selectedText: "x",
     beforeContext: [],
@@ -162,7 +229,16 @@ function createThread(
     languageId: "typescript",
     status: "open",
     originalAnchor: anchor,
-    currentAnchor: anchor,
+    currentAnchor:
+      currentLine === null
+        ? null
+        : {
+            ...anchor,
+            range: {
+              start: { line: currentLine, character: 0 },
+              end: { line: currentLine, character: 1 },
+            },
+          },
     anchorHistory: [{ kind: "created", at: createdAt }],
     diffContext: {
       header: "header",
@@ -176,7 +252,7 @@ function createThread(
       {
         id: `${id}-message`,
         author: "user",
-        body: "Review this.",
+        body,
         createdAt,
       },
     ],

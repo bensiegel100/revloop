@@ -66,6 +66,49 @@ describe("JSON review store migration", () => {
   });
 });
 
+describe("JSON review store pruning", () => {
+  it("removes only branch states that are not retained", async () => {
+    const root = await createTemporaryDirectory();
+    temporaryDirectories.push(root);
+    const repository = createRepository(root);
+    const retainedBranch = "refs/heads/main";
+    const deletedBranch = "refs/heads/deleted";
+    const store = new JsonReviewStore();
+
+    const retainedState = await store.loadBranch(repository, retainedBranch);
+    const deletedState = await store.loadBranch(repository, deletedBranch);
+    await store.saveBranch(retainedState, retainedState.revision);
+    await store.saveBranch(deletedState, deletedState.revision);
+    const branchesDirectory = path.join(repository.storageRoot, "branches");
+    const unrelatedFile = path.join(branchesDirectory, "notes.json");
+    await writeFile(unrelatedFile, "{}\n", "utf8");
+
+    await store.pruneBranchStates(repository, [retainedBranch]);
+    expect(
+      JSON.parse(
+        await readFile(
+          getBranchFile(repository.storageRoot, retainedBranch),
+          "utf8",
+        ),
+      ) as unknown,
+    ).toMatchObject({ branch: retainedBranch });
+    await expect(
+      readFile(getBranchFile(repository.storageRoot, deletedBranch), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(unrelatedFile, "utf8")).resolves.toBe("{}\n");
+  });
+
+  it("does nothing before any branch state is persisted", async () => {
+    const root = await createTemporaryDirectory();
+    temporaryDirectories.push(root);
+    const repository = createRepository(root);
+
+    await expect(
+      new JsonReviewStore().pruneBranchStates(repository, []),
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe("JSON review store concurrency", () => {
   it("allows only one simultaneous save for the same revision", async () => {
     const root = await createTemporaryDirectory();

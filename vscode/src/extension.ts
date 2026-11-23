@@ -45,6 +45,9 @@ export async function activate(
   registerCommand(context, "revloop.reopenThread", (argument) =>
     reviews.reopen(argument),
   );
+  registerCommand(context, "revloop.openThread", (argument) =>
+    reviews.openThread(argument),
+  );
   registerCommand(context, "revloop.openFile", (argument) =>
     reviews.openFile(argument),
   );

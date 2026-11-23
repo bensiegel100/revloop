@@ -10,31 +10,12 @@ import type { ActiveRepository } from "../../src/git/gitService.js";
 import type { ReviewFile, ReviewSnapshot } from "../../src/git/types.js";
 import { RefType } from "../../src/git/vscodeGitApi.js";
 import type { GitApi, Repository } from "../../src/git/vscodeGitApi.js";
-import {
-  createReviewFileTargets,
-  ReviewController,
-} from "../../src/reviewController.js";
+import { ReviewController } from "../../src/reviewController.js";
 import type { ThreadRepositoryContext } from "../../src/storage/threadRepository.js";
 import { ReviewFileItem } from "../../src/ui/reviewTree.js";
 import { mockState, resetVscodeMock } from "../helpers/vscodeMock.mjs";
 
 describe("review lifecycle", () => {
-  it("offers every file thread as a leaf click target", () => {
-    const current = createThread("thread-1", "open", true);
-    const historical = createThread("thread-2", "outdated", false);
-    const targets = createReviewFileTargets({
-      file: createReviewFile(),
-      threads: [current, historical],
-    });
-
-    expect(targets).toHaveLength(3);
-    expect(targets[0]?.file).toBeDefined();
-    expect(targets.slice(1).map((target) => target.thread?.id)).toEqual([
-      "thread-1",
-      "thread-2",
-    ]);
-  });
-
   it("disables writes while HEAD is detached and recovers on a named branch", async () => {
     const active = createActiveRepository();
     const threads = createThreadRepository(active.identity, active.branch);
@@ -46,6 +27,7 @@ describe("review lifecycle", () => {
         kind: "working-tree" as const,
         baseCommit: active.headCommit,
       })),
+      listLocalBranchRefs: vi.fn(() => Promise.resolve([active.branch])),
       createBranchSource: vi.fn(() =>
         Promise.resolve({
           kind: "branch" as const,
@@ -86,6 +68,12 @@ describe("review lifecycle", () => {
     });
     await controller.initialize();
     expect(threads.openCalls).toBe(1);
+    expect(threads.pruneCalls).toEqual([
+      {
+        repository: active.identity,
+        retainedBranches: [active.branch],
+      },
+    ]);
 
     await controller.refresh();
 
@@ -97,6 +85,7 @@ describe("review lifecycle", () => {
     await controller.refresh();
 
     expect(threads.openCalls).toBe(2);
+    expect(threads.pruneCalls).toHaveLength(2);
     await expect(controller.addThread()).rejects.toThrow(
       "Open a modified file before adding a review thread.",
     );
@@ -122,6 +111,7 @@ describe("review lifecycle", () => {
       selectRepository: vi.fn(() => Promise.resolve(active)),
       chooseBaseBranch: vi.fn(() => Promise.resolve("main")),
       createWorkingTreeSource: vi.fn(() => workingSource),
+      listLocalBranchRefs: vi.fn(() => Promise.resolve([active.branch])),
       createBranchSource: vi.fn(() =>
         Promise.resolve({
           kind: "branch" as const,
@@ -150,6 +140,7 @@ describe("review lifecycle", () => {
       ),
     };
     const showDocument = vi.fn(() => Promise.resolve(undefined));
+    const showQuickPick = vi.spyOn(vscode.window, "showQuickPick");
     setVscodeFunction(vscode.window, "showTextDocument", showDocument);
     setVscodeFunction(vscode.workspace, "openTextDocument", () =>
       Promise.resolve({ uri: file.modifiedUri }),
@@ -194,16 +185,24 @@ describe("review lifecycle", () => {
     await controller.editComment(userComment);
     await controller.cancelCommentEdit(userComment);
 
+    currentCommentThread.collapsibleState =
+      vscode.CommentThreadCollapsibleState.Collapsed;
     await controller.openThread(current.id);
+    expect(currentCommentThread.collapsibleState).toBe(
+      vscode.CommentThreadCollapsibleState.Expanded,
+    );
     await controller.openThread(historical.id);
     await controller.openFile(file.path);
     await controller.openFile(new ReviewFileItem(file.path, [current], file));
+    expect(showQuickPick).not.toHaveBeenCalled();
     expect(revealRange).toHaveBeenCalled();
     expect(showDocument).toHaveBeenCalled();
 
     await controller.startBranchReview();
     await controller.refresh();
     expect(git.createBranchSource).toHaveBeenCalledTimes(2);
+    expect(threads.pruneCalls).toHaveLength(2);
+    showQuickPick.mockRestore();
     controller.dispose();
   });
 });
@@ -273,6 +272,20 @@ function createThreadRepository(
     },
     suspendCalls: 0,
     openCalls: 0,
+    pruneCalls: [] as {
+      repository: RepositoryIdentity;
+      retainedBranches: readonly string[];
+    }[],
+    pruneBranchStates(
+      nextRepository: RepositoryIdentity,
+      retainedBranches: readonly string[],
+    ) {
+      this.pruneCalls.push({
+        repository: nextRepository,
+        retainedBranches: [...retainedBranches],
+      });
+      return Promise.resolve();
+    },
     open(nextRepository: RepositoryIdentity, nextBranch: string) {
       this.openCalls += 1;
       generation += 1;

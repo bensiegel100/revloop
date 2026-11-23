@@ -11,7 +11,8 @@ Use the Revloop MCP tools to complete the current review cycle.
 2. Call `read_comments` with that `repositoryRoot` and `status: "unresolved"`.
 3. If there are no unresolved threads, report that and stop.
 4. For every returned thread:
-   - Read its full conversation, selected excerpt, current range, and diff context.
+   - Read its full conversation, original selected text, and current range.
+   - If the current range is `null`, use the selected text and repository tools to locate the user's intended code.
    - Inspect the relevant repository code before deciding what to do.
    - Make the requested code change when appropriate.
    - Treat questions, disagreements, impossible requests, and non-actionable feedback as valid threads that still require replies.

@@ -302,9 +302,7 @@ describe("MCP review server fuzzing", () => {
             },
           ]);
           expect(parseTextResult(result)).toEqual({
-            repository: scenario.repository,
             branch: scenario.branch,
-            count: scenario.threads.length,
             threads: scenario.threads.map(toAgentThread),
           });
         });
@@ -454,18 +452,13 @@ async function withClient<T>(
 }
 
 function toAgentThread(thread: ReviewThread): object {
-  const anchor = thread.currentAnchor ?? thread.originalAnchor;
   return {
     id: thread.id,
     status: thread.status,
     filePath: thread.filePath,
-    languageId: thread.languageId,
-    currentRange: anchor.range,
-    originalRange: thread.originalAnchor.range,
-    selectedExcerpt: anchor.selectedText,
-    diffContext: thread.diffContext,
+    currentRange: thread.currentAnchor?.range ?? null,
+    selectedText: thread.originalAnchor.selectedText,
     messages: thread.messages,
-    anchorHistory: thread.anchorHistory,
   };
 }
 

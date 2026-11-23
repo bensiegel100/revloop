@@ -58,8 +58,30 @@ try {
     },
   });
   const readPayload = parseTextResult(readResult);
-  assert.equal(readPayload.count, 1);
-  assert.equal(readPayload.threads[0].id, "thread-1");
+  assert.deepEqual(Object.keys(readPayload).sort(), ["branch", "threads"]);
+  assert.deepEqual(readPayload, {
+    branch,
+    threads: [
+      {
+        id: "thread-1",
+        status: "open",
+        filePath: "src/example.ts",
+        currentRange: {
+          start: { line: 0, character: 0 },
+          end: { line: 0, character: 5 },
+        },
+        selectedText: "value",
+        messages: [
+          {
+            id: readPayload.threads[0].messages[0].id,
+            author: "user",
+            body: "Please update this.",
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    ],
+  });
 
   await client.callTool({
     name: "reply_to_comment",

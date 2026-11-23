@@ -136,9 +136,7 @@ export function createReviewToolHandlers(
       const repository = await getRepository(repositoryRoot);
       const result = await repository.readComments(status ?? "open", filePath);
       return textResult({
-        repository: result.repository,
         branch: result.branch,
-        count: result.threads.length,
         threads: result.threads.map(toAgentThread),
       });
     },
@@ -165,18 +163,13 @@ function isRepositoryRelativePath(value: string): boolean {
 }
 
 function toAgentThread(thread: ReviewThread): object {
-  const anchor = thread.currentAnchor ?? thread.originalAnchor;
   return {
     id: thread.id,
     status: thread.status,
     filePath: thread.filePath,
-    languageId: thread.languageId,
-    currentRange: anchor.range,
-    originalRange: thread.originalAnchor.range,
-    selectedExcerpt: anchor.selectedText,
-    diffContext: thread.diffContext,
+    currentRange: thread.currentAnchor?.range ?? null,
+    selectedText: thread.originalAnchor.selectedText,
     messages: thread.messages,
-    anchorHistory: thread.anchorHistory,
   };
 }
 

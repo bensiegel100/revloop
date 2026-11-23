@@ -29,7 +29,7 @@ describe("MCP review server", () => {
     expect(factory).toHaveBeenCalledTimes(2);
   });
 
-  it("serializes read and reply tool results", async () => {
+  it("serializes lean read and reply tool results", async () => {
     const repository = createRepository();
     const handlers = createReviewToolHandlers(() =>
       Promise.resolve(repository),
@@ -45,13 +45,26 @@ describe("MCP review server", () => {
       "open",
       "src/index.ts",
     );
-    expect(read).toMatchObject({
+    expect(read).toEqual({
       branch: "refs/heads/main",
-      count: 1,
       threads: [
         {
           id: "thread-1",
-          selectedExcerpt: "value",
+          status: "open",
+          filePath: "src/index.ts",
+          currentRange: {
+            start: { line: 4, character: 0 },
+            end: { line: 4, character: 13 },
+          },
+          selectedText: "value",
+          messages: [
+            {
+              id: "message-1",
+              author: "user",
+              body: "Review this.",
+              createdAt: "2026-01-01T00:00:00.000Z",
+            },
+          ],
         },
       ],
     });
@@ -74,6 +87,35 @@ describe("MCP review server", () => {
       threadId: "thread-1",
       replyId: "reply-1",
       status: "open",
+    });
+  });
+
+  it("returns a null current range for outdated threads", async () => {
+    const thread = createThread();
+    thread.status = "outdated";
+    thread.currentAnchor = null;
+    const handlers = createReviewToolHandlers(() =>
+      Promise.resolve(createRepository(thread)),
+    );
+
+    const read = parseTextResult(
+      await handlers.readComments({
+        repositoryRoot: "/workspace/repository",
+      }),
+    );
+
+    expect(read).toEqual({
+      branch: "refs/heads/main",
+      threads: [
+        {
+          id: "thread-1",
+          status: "outdated",
+          filePath: "src/index.ts",
+          currentRange: null,
+          selectedText: "value",
+          messages: thread.messages,
+        },
+      ],
     });
   });
 
@@ -148,14 +190,13 @@ describe("MCP review server", () => {
   });
 });
 
-function createRepository() {
+function createRepository(thread = createThread()) {
   const identity: RepositoryIdentity = {
     key: "repository",
     rootPath: "/workspace/repository",
     displayName: "repository",
     storageRoot: "/workspace/repository/.git/revloop",
   };
-  const thread = createThread();
   return {
     readComments: vi.fn(() =>
       Promise.resolve({
@@ -188,6 +229,14 @@ function createThread(): ReviewThread {
     contentHash: "hash",
     capturedAt: now,
   };
+  const currentAnchor: AnchorSnapshot = {
+    ...anchor,
+    range: {
+      start: { line: 4, character: 0 },
+      end: { line: 4, character: 13 },
+    },
+    selectedText: "updated value",
+  };
   return {
     id: "thread-1",
     repositoryKey: "repository",
@@ -196,7 +245,7 @@ function createThread(): ReviewThread {
     languageId: "typescript",
     status: "open",
     originalAnchor: anchor,
-    currentAnchor: anchor,
+    currentAnchor,
     anchorHistory: [{ kind: "created", at: now }],
     diffContext: {
       header: "header",

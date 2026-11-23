@@ -145,7 +145,7 @@ async function waitForComments(client, repositoryRoot, status, count) {
           },
         }),
       ),
-    (result) => result.count === count,
+    (result) => result.threads.length === count,
   );
 }
 

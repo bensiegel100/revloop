@@ -21,6 +21,7 @@ import { branchReviewStateSchema } from "./schema.js";
 const defaultLockTimeoutMs = 5_000;
 const defaultLockRetryDelayMs = 10;
 const lockOwnerFileName = "owner.json";
+const branchStateFileNamePattern = /^[a-f0-9]{64}\.json$/u;
 
 interface JsonReviewStoreOptions {
   lockTimeoutMs?: number;
@@ -117,6 +118,36 @@ export class JsonReviewStore {
       await this.atomicWrite(filePath, next);
       return next;
     });
+  }
+
+  public async pruneBranchStates(
+    repository: RepositoryIdentity,
+    retainedBranches: readonly string[],
+  ): Promise<void> {
+    const directory = path.join(repository.storageRoot, "branches");
+    let entries: string[];
+    try {
+      entries = await readdir(directory);
+    } catch (error: unknown) {
+      if (isErrnoException(error) && error.code === "ENOENT") {
+        return;
+      }
+      throw error;
+    }
+
+    const retainedFiles = new Set(
+      retainedBranches.map((branch) => `${sha256(branch)}.json`),
+    );
+    for (const entry of entries) {
+      if (!branchStateFileNamePattern.test(entry) || retainedFiles.has(entry)) {
+        continue;
+      }
+
+      const filePath = path.join(directory, entry);
+      await this.withBranchLock(filePath, async () => {
+        await rm(filePath, { force: true });
+      });
+    }
   }
 
   private branchFile(repository: RepositoryIdentity, branch: string): string {

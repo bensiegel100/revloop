@@ -31,7 +31,7 @@ Review state is stored outside the worktree under:
 <git-common-dir>/revloop/branches/<sha256-full-branch-name>.json
 ```
 
-This location is accessible to both VS Code and a harness-launched MCP server, remains local, and works across linked worktrees. The extension migrates existing data from its former VS Code global-storage location on first load.
+This location is accessible to both VS Code and a harness-launched MCP server, remains local, and works across linked worktrees. The extension migrates existing data from its former VS Code global-storage location on first load. Both consumers automatically remove branch-state JSON files whose local branch refs no longer exist.
 
 ## `vscode`
 
@@ -153,10 +153,11 @@ The plugin build copies the bundled MCP server into the plugin directory so repo
    npm run install:plugin
    ```
 
-   Once hosted on GitHub, Copilot CLI can install the portable subdirectory directly:
+   Once hosted on GitHub, register the repository marketplace and install the plugin:
 
    ```bash
-   copilot plugin install OWNER/REPOSITORY:plugin
+   copilot plugin marketplace add OWNER/REPOSITORY
+   copilot plugin install revloop@revloop
    ```
 
 3. Restart the harness and invoke:

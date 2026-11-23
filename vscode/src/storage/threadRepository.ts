@@ -38,6 +38,10 @@ interface ReviewStore {
     state: BranchReviewState,
     expectedRevision: number,
   ): Promise<BranchReviewState>;
+  pruneBranchStates(
+    repository: RepositoryIdentity,
+    retainedBranches: readonly string[],
+  ): Promise<void>;
 }
 
 export class StaleThreadRepositoryContextError extends Error {
@@ -104,6 +108,13 @@ export class ThreadRepository {
       (candidate) => candidate.id === threadId,
     );
     return thread === undefined ? undefined : structuredClone(thread);
+  }
+
+  public pruneBranchStates(
+    repository: RepositoryIdentity,
+    retainedBranches: readonly string[],
+  ): Promise<void> {
+    return this.store.pruneBranchStates(repository, retainedBranches);
   }
 
   public onDidChange(listener: ChangeListener): { dispose(): void } {

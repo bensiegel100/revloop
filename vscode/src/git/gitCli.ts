@@ -95,6 +95,25 @@ export async function listUntrackedFilePaths(
   return parseNullSeparatedPaths(output);
 }
 
+export async function listLocalBranchRefs(
+  executable: string,
+  cwd: string,
+): Promise<string[]> {
+  const output = await runGit(
+    executable,
+    ["for-each-ref", "--format=%(refname)", "refs/heads"],
+    cwd,
+  );
+  return [
+    ...new Set(
+      output
+        .split(/\r?\n/u)
+        .map((ref) => ref.trim())
+        .filter((ref) => ref.startsWith("refs/heads/")),
+    ),
+  ].sort((left, right) => left.localeCompare(right));
+}
+
 export function runGit(
   executable: string,
   args: readonly string[],

@@ -3,7 +3,8 @@ import type { ReviewThread } from "@revloop/shared";
 import type { ReviewFile, ReviewSnapshot } from "../git/types.js";
 import type { ThreadRepository } from "../storage/threadRepository.js";
 
-export type ReviewTreeNode = ReviewDirectoryItem | ReviewFileItem;
+export type ReviewTreeNode =
+  ReviewDirectoryItem | ReviewFileItem | ReviewThreadItem;
 export type ReviewTreeRepository = Pick<
   ThreadRepository,
   "list" | "onDidChange"
@@ -22,12 +23,20 @@ export class ReviewDirectoryItem extends vscode.TreeItem {
 }
 
 export class ReviewFileItem extends vscode.TreeItem {
+  public readonly children: readonly ReviewThreadItem[];
+
   public constructor(
     public readonly filePath: string,
     public readonly threads: readonly ReviewThread[],
     public readonly file?: ReviewFile,
   ) {
-    super(baseName(filePath), vscode.TreeItemCollapsibleState.None);
+    super(
+      baseName(filePath),
+      threads.length === 0
+        ? vscode.TreeItemCollapsibleState.None
+        : vscode.TreeItemCollapsibleState.Expanded,
+    );
+    this.children = threads.map((thread) => new ReviewThreadItem(thread));
     this.tooltip = filePath;
     if (threads.length > 0) {
       this.description = String(threads.length);
@@ -41,6 +50,20 @@ export class ReviewFileItem extends vscode.TreeItem {
         arguments: [this],
       };
     }
+  }
+}
+
+export class ReviewThreadItem extends vscode.TreeItem {
+  public constructor(public readonly thread: ReviewThread) {
+    super(threadLabel(thread), vscode.TreeItemCollapsibleState.None);
+    this.tooltip = firstHumanComment(thread);
+    this.iconPath = new vscode.ThemeIcon("comment-discussion");
+    this.contextValue = "revloop.thread";
+    this.command = {
+      command: "revloop.openThread",
+      title: "Open Review Thread",
+      arguments: [this],
+    };
   }
 }
 
@@ -83,6 +106,9 @@ export class ReviewTreeProvider
       return [...element.children];
     }
     if (element instanceof ReviewFileItem) {
+      return [...element.children];
+    }
+    if (element instanceof ReviewThreadItem) {
       return [];
     }
 
@@ -169,13 +195,33 @@ function materializeChildren(directory: MutableDirectory): ReviewTreeNode[] {
 }
 
 function sortedThreads(threads: readonly ReviewThread[]): ReviewThread[] {
-  return threads
-    .slice()
-    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+  return threads.slice().sort((left, right) => {
+    const lineDifference = threadLine(left) - threadLine(right);
+    return lineDifference !== 0
+      ? lineDifference
+      : left.createdAt.localeCompare(right.createdAt);
+  });
+}
+
+function threadLine(thread: ReviewThread): number {
+  return (thread.currentAnchor ?? thread.originalAnchor).range.start.line;
 }
 
 function baseName(filePath: string): string {
   return filePath.split("/").at(-1) ?? filePath;
+}
+
+function threadLabel(thread: ReviewThread): string {
+  const line =
+    firstHumanComment(thread).split(/\r?\n/, 1)[0] ?? "Review thread";
+  return line.length > 80 ? `${line.slice(0, 77)}...` : line;
+}
+
+function firstHumanComment(thread: ReviewThread): string {
+  return (
+    thread.messages.find((message) => message.author === "user")?.body ??
+    "Review thread"
+  );
 }
 
 function fileIcon(file: ReviewFile | undefined): vscode.ThemeIcon {
