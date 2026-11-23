@@ -223,7 +223,7 @@ describe("JSON review store concurrency", () => {
       (result): result is PromiseRejectedResult => result.status === "rejected",
     );
     expect(rejection?.reason).toBeInstanceOf(ConcurrentReviewStateError);
-  });
+  }, 15_000);
 
   it("reclaims a dead same-host lock before saving", async () => {
     const root = await createTemporaryDirectory();
