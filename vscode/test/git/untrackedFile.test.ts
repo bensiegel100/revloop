@@ -126,7 +126,11 @@ describe("untracked file snapshots", () => {
 
     expect(binary.diff.binary).toBe(true);
     expect(binary.canComment).toBe(false);
-    expect(executable.diff.header).toContain("new file mode 100755");
+    expect(executable.diff.header).toContain(
+      process.platform === "win32"
+        ? "new file mode 100644"
+        : "new file mode 100755",
+    );
     expect(executable.canComment).toBe(true);
   });
 

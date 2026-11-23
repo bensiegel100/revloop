@@ -1,4 +1,5 @@
 import { lstat, readFile, readlink } from "node:fs/promises";
+import path from "node:path";
 import { resolveRepositoryPath } from "@revloop/shared";
 import type { RepositoryIdentity } from "@revloop/shared";
 import { createUntrackedDiff } from "./diffParser.js";
@@ -26,7 +27,7 @@ export async function readWorkingTreeEntry(
     if (stats.isSymbolicLink()) {
       return {
         canComment: false,
-        snapshotContent: await readlink(absolutePath),
+        snapshotContent: normalizeSymlinkTarget(await readlink(absolutePath)),
       };
     }
 
@@ -50,7 +51,7 @@ export async function readUntrackedFile(
   try {
     const stats = await lstat(absolutePath);
     if (stats.isSymbolicLink()) {
-      const target = await readlink(absolutePath);
+      const target = normalizeSymlinkTarget(await readlink(absolutePath));
       return {
         diff: createUntrackedDiff(filePath, target, "120000"),
         canComment: false,
@@ -111,4 +112,8 @@ function createBinaryUntrackedDiff(
 
 function isExecutable(mode: number): boolean {
   return (mode & 0o111) !== 0;
+}
+
+function normalizeSymlinkTarget(target: string): string {
+  return path.sep === "\\" ? target.replaceAll("\\", "/") : target;
 }

@@ -1,3 +1,4 @@
+import path from "node:path";
 import * as vscode from "vscode";
 import { resolveRepositoryPath } from "@revloop/shared";
 import type { ReviewSource, ReviewThread } from "@revloop/shared";
@@ -179,7 +180,8 @@ export class ReviewController implements vscode.Disposable {
       const activeEditor = vscode.window.activeTextEditor;
       const anchor = thread.currentAnchor;
       if (
-        activeEditor?.document.uri.toString() === file.modifiedUri.toString()
+        activeEditor !== undefined &&
+        refersToSameDocument(activeEditor.document.uri, file.modifiedUri)
       ) {
         activeEditor.selection = new vscode.Selection(
           anchor.range.start.line,
@@ -453,4 +455,13 @@ function isUnsupportedHeadError(error: unknown): boolean {
     error.message === "Detached HEAD is unsupported." ||
     error.message === "Repositories without an initial commit are unsupported."
   );
+}
+
+function refersToSameDocument(left: vscode.Uri, right: vscode.Uri): boolean {
+  if (left.scheme !== right.scheme) {
+    return false;
+  }
+  return left.scheme === "file"
+    ? path.relative(left.fsPath, right.fsPath) === ""
+    : left.toString() === right.toString();
 }
