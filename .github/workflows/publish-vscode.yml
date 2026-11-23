@@ -34,6 +34,8 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: xvfb-run -a npm run test:extension
+      - name: Install Copilot CLI
+        run: npm_config_ignore_scripts=false npm install --global @github/copilot@1.0.114
       - run: npm run test:plugin
       - run: npm run test:fuzz
       - id: artifact
