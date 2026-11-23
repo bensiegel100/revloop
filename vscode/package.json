@@ -1,0 +1,219 @@
+{
+  "name": "revloop",
+  "displayName": "Revloop",
+  "description": "Review local agent changes with persistent inline threads in native VS Code diffs.",
+  "version": "0.0.1",
+  "publisher": "revloop",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Other",
+    "SCM Providers"
+  ],
+  "keywords": [
+    "copilot",
+    "review",
+    "diff",
+    "comments"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "revloop.startWorkingTreeReview",
+        "title": "Revloop: Review Working Tree",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "revloop.startBranchReview",
+        "title": "Revloop: Review Branch Against Base",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "revloop.addThread",
+        "title": "Revloop: Add Review Thread",
+        "icon": "$(comment-add)"
+      },
+      {
+        "command": "revloop.replyToThread",
+        "title": "Reply",
+        "enablement": "!commentIsEmpty",
+        "icon": "$(reply)"
+      },
+      {
+        "command": "revloop.editComment",
+        "title": "Edit Comment",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "revloop.saveComment",
+        "title": "Save Comment",
+        "enablement": "!commentIsEmpty",
+        "icon": "$(check)"
+      },
+      {
+        "command": "revloop.cancelCommentEdit",
+        "title": "Cancel Comment Edit",
+        "icon": "$(close)"
+      },
+      {
+        "command": "revloop.resolveThread",
+        "title": "Resolve Thread",
+        "enablement": "revloop.reviewActive",
+        "icon": "$(check)"
+      },
+      {
+        "command": "revloop.reopenThread",
+        "title": "Reopen Thread",
+        "enablement": "revloop.reviewActive",
+        "icon": "$(history)"
+      },
+      {
+        "command": "revloop.openFile",
+        "title": "Open Changed File"
+      },
+      {
+        "command": "revloop.refresh",
+        "title": "Revloop: Refresh",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "revloop.addThread",
+          "when": "revloop.reviewActive && resourceScheme == file",
+          "group": "navigation@10"
+        }
+      ],
+      "comments/commentThread/context": [
+        {
+          "command": "revloop.replyToThread",
+          "when": "commentController == revloop && revloop.reviewActive",
+          "group": "inline"
+        }
+      ],
+      "comments/comment/title": [
+        {
+          "command": "revloop.editComment",
+          "when": "commentController == revloop && comment == revloop.user && revloop.reviewActive",
+          "group": "navigation@1"
+        }
+      ],
+      "comments/comment/context": [
+        {
+          "command": "revloop.saveComment",
+          "when": "commentController == revloop && comment == revloop.user && revloop.reviewActive",
+          "group": "inline@1"
+        },
+        {
+          "command": "revloop.cancelCommentEdit",
+          "when": "commentController == revloop && comment == revloop.user && revloop.reviewActive",
+          "group": "inline@2"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "revloop.resolveThread",
+          "when": "commentController == revloop && commentThread == revloop.open && revloop.reviewActive",
+          "group": "navigation@1"
+        },
+        {
+          "command": "revloop.resolveThread",
+          "when": "commentController == revloop && commentThread == revloop.outdated && revloop.reviewActive",
+          "group": "navigation@1"
+        },
+        {
+          "command": "revloop.reopenThread",
+          "when": "commentController == revloop && commentThread == revloop.resolved && revloop.reviewActive",
+          "group": "navigation@1"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "revloop.startWorkingTreeReview",
+          "when": "view == revloop.threads",
+          "group": "navigation@0"
+        },
+        {
+          "command": "revloop.startBranchReview",
+          "when": "view == revloop.threads",
+          "group": "navigation@0"
+        },
+        {
+          "command": "revloop.refresh",
+          "when": "view == revloop.threads",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "revloop",
+          "title": "Revloop",
+          "icon": "media/revloop.svg"
+        }
+      ]
+    },
+    "views": {
+      "revloop": [
+        {
+          "id": "revloop.threads",
+          "name": "Revloop"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "revloop.threads",
+        "contents": "Review local agent changes and attach feedback to modified code.\n[Review Working Tree](command:revloop.startWorkingTreeReview)\n[Review Branch Against Base](command:revloop.startBranchReview)"
+      }
+    ],
+    "configuration": {
+      "title": "Revloop",
+      "properties": {
+        "revloop.anchor.contextLines": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Number of surrounding lines captured for anchor remapping."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && node esbuild.mjs",
+    "compile": "npm run build",
+    "watch": "node esbuild.mjs --watch",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint esbuild.mjs src test",
+    "test": "vitest run --config ../vitest.config.mts --root .",
+    "test:coverage": "vitest run --config ../vitest.config.mts --root . --coverage",
+    "test:extension": "npm run build --workspace @revloop/shared && npm run build --workspace @revloop/mcp && npm run build && node test/extension/run.mjs",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package --no-dependencies --allow-missing-repository --out ../revloop-0.0.1.vsix"
+  },
+  "devDependencies": {
+    "@revloop/shared": "0.0.1"
+  }
+}

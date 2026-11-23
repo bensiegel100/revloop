@@ -1,0 +1,21 @@
+{
+  "name": "@revloop/mcp",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/mcp-server.cjs",
+  "scripts": {
+    "build": "npm run clean && node esbuild.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint esbuild.mjs src test",
+    "test": "vitest run --config ../vitest.config.mts --root .",
+    "test:coverage": "vitest run --config ../vitest.config.mts --root . --coverage",
+    "test:protocol": "npm run build && node test/smoke.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "@revloop/shared": "0.0.1",
+    "zod": "4.6.7"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@revloop/shared",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src test",
+    "test": "vitest run --config ../vitest.config.mts --root .",
+    "test:coverage": "vitest run --config ../vitest.config.mts --root . --coverage"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  }
+}

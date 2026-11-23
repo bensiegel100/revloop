@@ -1,21 +1,21 @@
-# PRD: Agent Review Threads for VS Code
+# PRD: Revloop for VS Code
 
 ## 1. Executive Summary
 
 ### Problem Statement
 
-Developers reviewing agent-written code must choose between a capable code-review environment and a conversational agent workflow. VS Code provides high-quality diffs, syntax highlighting, navigation, and language intelligence, but it does not provide a complete way to collect inline review threads and dispatch them to a selected GitHub Copilot CLI session.
+Developers reviewing agent-written code must choose between a capable code-review environment and a conversational agent workflow. VS Code provides high-quality diffs, syntax highlighting, navigation, and language intelligence, but it does not provide a complete way to collect inline review threads and expose them to the GitHub Copilot CLI session already doing the work.
 
 ### Proposed Solution
 
-Build a local-first VS Code extension that lets a developer review working-tree or branch changes, attach persistent threads to selected modified code, and send a lightweight instruction to a new or resumed Copilot SDK session. The agent fetches open threads through local tools, changes code where appropriate, and replies to every thread; only the developer can resolve a thread.
+Build a local-first VS Code extension that lets a developer review working-tree or branch changes, attach persistent threads to selected modified code, and expose those threads through a repository-scoped MCP server. The current agent fetches open threads, changes code where appropriate, and replies with what it changed; only the developer can resolve a thread.
 
 ### Success Criteria
 
-- A developer can annotate and dispatch feedback for a 10-file change set in under 10 minutes.
+- A developer can annotate feedback for a 10-file change set in under 10 minutes.
 - Every thread exposed to the agent includes the correct repository-relative file, current line range, selected excerpt, and relevant diff context.
 - At least 95% of thread anchors remain attached after common edits above or within the selected range; uncertain anchors are marked outdated rather than silently moved.
-- Every dispatched open thread receives an agent reply or an explicit delivery failure before the run is considered complete.
+- The current Copilot CLI session can read only open threads by default and append an agent reply to any thread.
 - The MVP works in VS Code Desktop on macOS, Linux, and Windows without uploading review data to a product-owned service.
 
 ## 2. User Experience & Functionality
@@ -26,9 +26,9 @@ Build a local-first VS Code extension that lets a developer review working-tree 
 
 The primary user delegates implementation work to GitHub Copilot CLI, then reviews the resulting local changes before accepting or continuing the work. They prefer VS Code for code comprehension and want review feedback to remain attached to code rather than becoming an unstructured terminal prompt.
 
-#### Secondary: Developer managing several Copilot sessions
+#### Secondary: Developer continuing an existing Copilot session
 
-The secondary user has multiple recent sessions and needs to continue the correct conversation without manually reconstructing context or copying a large review into a terminal.
+The secondary user wants the agent already working in the repository to retrieve structured review feedback without starting another session or copying comments into a terminal.
 
 ### User Stories
 
@@ -80,29 +80,19 @@ As a developer, I want threads to survive edits, commits, reloads, and session c
 - Threads survive VS Code reloads and commits on the same branch.
 - Thread anchors track code movement when the mapping is unambiguous.
 - When a range cannot be mapped confidently, the thread is marked `Outdated` and retains its original excerpt and location.
+- Outdated threads remain clickable and open a read-only historical document containing their original diff context and conversation.
 - Branches do not inherit another branch's threads automatically in the MVP.
 
-#### Story 5: Dispatch open threads to a selected Copilot session
+#### Story 5: Expose threads to the current Copilot session
 
-As a developer, I want to select a recent session or create a new one so that the review continues in the correct Copilot conversation.
+As a developer, I want the current Copilot CLI session to read my open review threads so that the review continues in the existing conversation.
 
 **Acceptance Criteria**
 
-- The session picker supports:
-  - creating a new persisted Copilot SDK session;
-  - resuming a session by ID;
-  - selecting from recent sessions when a supported session-listing API is available.
-- Recent sessions are prioritized by current repository, branch, and last-used time.
-- The extension creates or resumes the SDK session with the repository root as its working directory.
-- Dispatch sends a short instruction telling the agent to fetch and address the open review threads.
-- The full review payload is fetched through tools rather than embedded in the initial prompt.
-- After creating or resuming a session, the UI shows a copyable command:
-
-  ```text
-  copilot --resume <session-id>
-  ```
-
-- The UI explains when the command can be used if the SDK session is still running.
+- A separately installed Agent Plugins bundle provides the local stdio MCP server and review skill.
+- The MCP server derives repository scope from the CLI session's working directory and resolves the currently checked-out branch for every tool call.
+- The plugin exposes an invokable `/review-comments` skill.
+- The full review payload is fetched through MCP tools rather than embedded in the user's prompt.
 
 #### Story 6: Require an agent response for every thread
 
@@ -112,10 +102,9 @@ As a developer, I want the agent to reply to every thread it considers so that I
 
 - The agent can list open threads and read their full conversations.
 - The agent can reply to a thread but cannot resolve, delete, or move it.
-- The dispatch instruction requires one reply per open thread, including non-actionable questions.
-- When the agent becomes idle, the extension checks whether every dispatched thread received a new agent reply.
-- If replies are missing, the extension sends one bounded follow-up listing the missing thread IDs.
-- Remaining omissions are surfaced as delivery failures in the review sidebar.
+- The recommended agent instruction requires one reply per open thread, including non-actionable questions.
+- Agent replies record whether the request was changed, answered, declined, or blocked.
+- MCP replies never resolve, reopen, delete, or move a thread.
 
 ### Non-Goals
 
@@ -133,20 +122,19 @@ As a developer, I want the agent to reply to every thread it considers so that I
 
 ### Tool Requirements
 
-Each created or resumed Copilot SDK session receives local review tools scoped to one repository and branch:
+Revloop exposes local MCP tools scoped to one repository and the currently checked-out branch:
 
-- `list_review_threads`
-  - Returns open and outdated threads, their IDs, file paths, current ranges, excerpts, diff context, and latest replies.
-- `get_review_thread`
-  - Returns the complete conversation and anchor history for one thread.
-- `reply_to_review_thread`
-  - Appends an agent-authored reply to one thread.
+- `read_comments`
+  - Returns threads with their IDs, statuses, file paths, current ranges, excerpts, diff context, conversations, and anchor history.
+  - Accepts the current repository root and supports status and file-path filtering, including `Unresolved` for open and outdated threads.
+- `reply_to_comment`
+  - Accepts the current repository root and appends an agent-authored reply to one thread.
 
-The agent must not receive tools that resolve or delete threads. Tool requests must include an unguessable workspace capability token or remain in-process so another local process cannot modify review data.
+The agent must not receive tools that resolve or delete threads. The local server uses stdio rather than a listening network endpoint and derives repository and storage scope from Git.
 
-The default dispatch instruction is conceptually:
+The recommended agent instruction is:
 
-> Review every open thread for this repository and branch. Make code changes where appropriate. Use the review tools to reply to every thread, including questions and requests you cannot complete. Do not resolve threads.
+> Read all open Revloop comments, address each one, and reply to every comment with what changed. Do not resolve threads.
 
 ### Evaluation Strategy
 
@@ -159,19 +147,19 @@ The default dispatch instruction is conceptually:
 #### Context-integrity evaluation
 
 - Test single-line and multi-line comments across renamed symbols, inserted lines, formatting changes, and file edits.
-- Verify exact file, range, excerpt, and diff-hunk association before dispatch.
+- Verify exact file, range, excerpt, and diff-hunk association in MCP results.
 - Mark ambiguous mappings outdated instead of associating them with unrelated code.
 
-#### Session evaluation
+#### MCP evaluation
 
-- Create a new session, resume it by ID, dispatch review work, and verify persisted conversation continuity.
-- Confirm that the displayed `copilot --resume <session-id>` command opens the expected session after the SDK run releases it.
-- Validate repository and branch ranking for recent sessions when session enumeration is supported.
+- Install the `revloop` plugin and verify its skill and MCP server are discovered.
+- Invoke `/review-comments` and verify `read_comments` and `reply_to_comment`.
+- Switch branches and verify the same MCP server reads the destination branch's review state.
 
 #### Cross-platform evaluation
 
 - Run end-to-end extension tests on current supported versions of macOS, Ubuntu, and Windows.
-- Verify path normalization, Git behavior, local storage, and SDK startup on each platform.
+- Verify path normalization, Git behavior, repository-local storage, MCP process startup, and plugin installation on each platform.
 
 ## 4. Technical Specifications
 
@@ -182,23 +170,20 @@ The MVP consists of four local components:
 1. **VS Code extension UI**
    - Starts reviews, opens native diffs, creates threads, renders conversations, and manages resolution.
 2. **Local thread store**
-   - Persists branch-scoped threads, replies, anchors, dispatch history, and session IDs in VS Code workspace storage or a local database.
-3. **Review tool service**
-   - Exposes thread-reading and reply tools only to the selected Copilot SDK session.
-4. **Copilot session coordinator**
-   - Creates or resumes a persisted session, registers review tools, sends the review nudge, observes completion, validates replies, and disconnects cleanly.
+   - Persists branch-scoped threads, replies, and anchors under the repository's Git common directory so VS Code and MCP share one local source of truth.
+3. **Revloop MCP server**
+   - Runs over stdio when launched by Copilot CLI and exposes read and reply tools.
+4. **Agent plugin**
+   - Bundles the MCP server configuration, server artifact, and `/review-comments` skill.
 
 ```text
 VS Code diff and comments
           |
           v
- Local branch thread store <---- Review tool service
-          |                              ^
-          v                              |
- Session picker ---> Copilot SDK session-+
-                          |
-                          v
-                    Workspace edits
+Local branch thread store <---- Revloop MCP server <---- Current Copilot CLI session
+         ^                                                   |
+         |___________________________________________________|
+                          agent replies
 ```
 
 ### Thread Data Model
@@ -213,8 +198,7 @@ Each thread contains:
 - anchor fingerprint used for remapping;
 - status: `Open`, `Outdated`, or `Resolved`;
 - ordered user and agent messages;
-- creation, update, dispatch, and resolution timestamps;
-- associated Copilot session IDs and dispatch attempts.
+- creation, update, and resolution timestamps.
 
 Resolution is a user-only state transition. Agent replies can record outcomes such as changed, answered, declined, or blocked without changing thread status.
 
@@ -225,15 +209,13 @@ Resolution is a user-only state transition. Agent replies can record outcomes su
 - Comments API for inline conversation threads.
 - Diff and text-editor APIs for modified-side ranges.
 - Git extension API or Git CLI for working-tree and merge-base diffs.
-- Workspace storage or an extension-owned local database for persistence.
+- Extension-owned local JSON storage for persistence.
 - Commands, context menus, gutter actions, sidebar views, notifications, and clipboard APIs.
 
 #### GitHub Copilot
 
-- Copilot SDK session creation and resume by session ID.
-- Persisted session IDs for later terminal continuation.
-- Session events for turn completion and idle detection.
-- Standard SDK permission requests surfaced to the user in VS Code.
+- Agent Plugins 1.0 manifest, skill, and MCP configuration.
+- Local stdio server launch inherited from the CLI session's repository working directory.
 
 #### Git
 
@@ -242,12 +224,12 @@ Resolution is a user-only state transition. Agent replies can record outcomes su
 
 ### Security & Privacy
 
-- Review data remains local except when supplied to the selected Copilot session.
+- Review data remains local except when returned to the current Copilot session through MCP.
 - The extension must not collect source code, prompts, comments, or agent replies as telemetry.
 - Any telemetry must be opt-in and limited to anonymous feature counters and timings.
-- Local tool access is restricted to the active repository, branch, and dispatch.
+- Local tool access is restricted to the CLI working repository and currently checked-out branch.
 - Tool arguments are validated against path traversal and cross-workspace access.
-- Copilot permissions remain user-controlled; the extension does not silently approve destructive shell commands or external network access.
+- Copilot permissions remain user-controlled; Revloop does not approve shell commands or external network access.
 - Stored review data must not include Copilot credentials or access tokens.
 
 ## 5. Risks & Roadmap
@@ -259,56 +241,46 @@ Resolution is a user-only state transition. Agent replies can record outcomes su
 - Working-tree and branch-diff review sources.
 - Modified-side inline threads and review sidebar.
 - Branch-scoped local persistence and basic anchor remapping.
-- New and resumed Copilot SDK sessions.
-- Local list, read, and reply tools.
-- Mandatory per-thread agent responses.
+- Bundled local stdio MCP server.
+- Open-thread filtering and agent replies through MCP.
+- Installable portable `revloop` agent plugin.
+- Invokable `/review-comments` skill.
 - User-only thread resolution.
-- Copyable terminal resume command.
 
 #### v1.1: Make repeated review cycles faster
 
-- Selective dispatch by file or thread.
+- Additional MCP filters and batch reply workflows.
 - Better anchor remapping across larger refactors and file renames.
 - Reviewed-file progress and stale-review indicators.
-- Session search by name, ID prefix, branch, and last-used time.
 - A compact view of changes made since the user's previous review.
 
 #### v2.0: Expand interoperability
 
 - GitHub pull-request review synchronization.
 - Team-shared review state.
-- Additional CLI agents through adapters.
-- Live bridges to already-running external terminal sessions.
+- Additional MCP-capable agents through adapters.
 - Additional editors through a reusable review-thread protocol.
 
 ### Technical Risks
 
-#### Recent-session discovery may lack a stable public API
+#### Copilot caches installed plugins
 
-The SDK can create and resume sessions by ID, but recent-session enumeration must be validated against a supported API. If no stable API exists, the MVP will list sessions previously used by the extension and accept manually entered session IDs.
-
-#### Concurrent clients may contend for one persisted session
-
-Opening `copilot --resume <session-id>` while the SDK owns that session may fail or produce conflicting activity. The extension must release the session after the dispatched turn and clearly indicate when terminal resume is safe.
+After installing or updating the local plugin, the user must start a session that loads the refreshed plugin cache.
 
 #### Code edits can invalidate anchors
 
 Agent changes may replace or move the selected code. Anchor remapping must use range tracking plus content fingerprints and must prefer an explicit `Outdated` state over an incorrect attachment.
 
-#### Agents may omit required replies
+#### Concurrent extension and MCP writes can conflict
 
-Prompt instructions alone are not sufficient. The coordinator must verify tool usage, issue one bounded follow-up for missing replies, and expose any remaining omissions rather than implying success.
+The extension and MCP process share revisioned local JSON state. Writes must use optimistic concurrency and retry bounded conflicts, while the extension watches for external revisions.
 
-#### Resumed sessions may not retain extension tools automatically
+#### The MCP server requires Node.js
 
-Every resume operation must re-register the local review tools and validate tool availability before dispatch.
-
-#### Local IPC can expose review data
-
-If tools use a loopback server or socket, the service must bind locally, use per-dispatch capability tokens, reject requests from other workspaces, and shut down when the session disconnects.
+The plugin launches a bundled JavaScript server with `node`; Node.js 20 or later must be available on `PATH`.
 
 ### Assumptions Requiring Prototype Validation
 
-- Copilot SDK sessions can edit the current workspace while permission requests are presented coherently in VS Code.
-- A resumed SDK session can be released and subsequently opened with `copilot --resume <session-id>` without state loss.
+- Copilot CLI can install the `revloop` plugin from the repository subdirectory.
+- Plugin installation exposes both the MCP tools and `/review-comments` skill.
 - VS Code's Comments API provides sufficient control for branch-persistent, user-resolved threaded conversations on the modified side of native diffs.

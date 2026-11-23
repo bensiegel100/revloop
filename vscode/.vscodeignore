@@ -1,0 +1,15 @@
+.git/**
+.gitignore
+.github/**
+.vscode/**
+coverage/**
+.turbo/**
+node_modules/**
+docs/**
+src/**
+test/**
+**/*.map
+eslint.config.mjs
+esbuild.mjs
+tsconfig.json
+vitest.config.mts

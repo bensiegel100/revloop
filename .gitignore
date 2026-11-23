@@ -1,0 +1,8 @@
+node_modules/
+.turbo/
+**/.vscode-test/
+**/dist/
+**/coverage/
+*.vsix
+*.log
+.DS_Store

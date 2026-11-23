@@ -1,0 +1,82 @@
+{
+  "name": "revloop-monorepo",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "npm@11.20.0",
+  "engines": {
+    "node": ">=22.22.1"
+  },
+  "workspaces": [
+    "shared",
+    "vscode",
+    "mcp",
+    "plugin"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "clean": "turbo run clean",
+    "check-types": "tsc --noEmit -p tsconfig.json && turbo run check-types",
+    "lint": "eslint eslint.config.mjs scripts types && turbo run lint",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage --filter=@revloop/shared --filter=revloop --filter=@revloop/mcp && turbo run test --filter=@revloop/plugin",
+    "test:integration": "npm run test:mcp && npm run test:extension && npm run test:plugin",
+    "test:mcp": "turbo run build --filter=@revloop/mcp && npm run test:protocol --workspace @revloop/mcp",
+    "test:extension": "npm run test:extension --workspace revloop",
+    "test:plugin": "npm run test:plugin --workspace @revloop/plugin",
+    "format": "prettier --write \"{shared,vscode,mcp}/**/*.{ts,mjs,cjs,json,md}\" \"plugin/**/*.{json,md}\" \"scripts/**/*.{mjs,js}\" \"types/**/*.ts\" \"*.{json,mjs,mts,md}\" \".github/**/*.yml\" \".vscode/*.json\"",
+    "format:check": "prettier --check \"{shared,vscode,mcp}/**/*.{ts,mjs,cjs,json,md}\" \"plugin/**/*.{json,md}\" \"scripts/**/*.{mjs,js}\" \"types/**/*.ts\" \"*.{json,mjs,mts,md}\" \".github/**/*.yml\" \".vscode/*.json\"",
+    "check": "npm run format:check && npm run lint && npm run check-types && turbo run test build && npm run test:mcp",
+    "package:vscode": "turbo run build --filter=revloop && npm run package --workspace revloop",
+    "install:vscode": "npm run package:vscode && code --install-extension ./revloop-0.0.1.vsix --force",
+    "install:plugin": "turbo run build --filter=@revloop/plugin && node scripts/install-plugin.mjs",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@microsoft/eslint-plugin-sdl": "^1.1.0",
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/node": "22.20.5",
+    "@types/vscode": "1.106.0",
+    "@vitest/coverage-v8": "^4.1.12",
+    "@vitest/eslint-plugin": "^1.6.28",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.1.1",
+    "esbuild": "^0.28.2",
+    "eslint": "9.39.5",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import-x": "^4.18.1",
+    "eslint-plugin-n": "^18.5.0",
+    "globals": "^17.14.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.2",
+    "prettier": "^3.10.1",
+    "turbo": "2.11.13",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "4.1.12"
+  },
+  "lint-staged": {
+    "eslint.config.mjs": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "scripts/**/*.{mjs,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "{shared,vscode,mcp,types}/**/*.{ts,mjs,cjs}": [
+      "eslint --fix --no-warn-ignored",
+      "prettier --write"
+    ],
+    "{shared,vscode,mcp}/**/*.{json,md}": "prettier --write",
+    "plugin/**/*.{json,md}": "prettier --write",
+    "*.{json,mts,md}": "prettier --write",
+    ".github/**/*.yml": "prettier --write",
+    ".vscode/*.json": "prettier --write",
+    "**/*": "node scripts/run-precommit-checks.mjs"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "@vscode/vsce-sign@2.1.1": true,
+    "fsevents@2.3.3": true
+  }
+}

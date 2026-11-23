@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "revloop",
+  "version": "0.0.1",
+  "description": "Review VS Code Revloop comments from an Agent Plugins-compatible coding harness.",
+  "author": {
+    "name": "Revloop"
+  },
+  "keywords": ["code-review", "comments", "vscode"]
+}
