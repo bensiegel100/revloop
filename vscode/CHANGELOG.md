@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+### Changed
+
+- Simplified the Marketplace README by removing installation and requirements
+  sections.
+
 ## 0.1.1
 
 ### Fixed

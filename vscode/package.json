@@ -2,7 +2,7 @@
   "name": "revloop",
   "displayName": "Revloop",
   "description": "Review local coding-agent changes with persistent inline threads in native VS Code diffs.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "preview": true,
   "publisher": "bensiegel",
   "private": true,

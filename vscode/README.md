@@ -22,35 +22,6 @@ code changes.
 
 Only you can resolve or reopen a thread. Agent replies are read-only in VS Code.
 
-## Requirements
-
-- VS Code 1.101 or later.
-- A trusted, local Git workspace on a named branch.
-- At least one commit in the repository.
-
-Detached `HEAD`, unborn repositories, virtual workspaces, and untrusted
-workspaces are not supported.
-
-## Installation
-
-Install **Revloop** from the VS Code Marketplace or run:
-
-```bash
-code --install-extension bensiegel.revloop
-```
-
-If you installed a pre-Marketplace local build, remove its old extension ID
-before installing this release:
-
-```bash
-code --uninstall-extension revloop.revloop
-code --install-extension bensiegel.revloop
-```
-
-Reload VS Code after migrating.
-
-Open the **Revloop** view from the activity bar after installation.
-
 ## Quick start
 
 1. Select **Review Working Tree** to review local changes, or **Review Branch
