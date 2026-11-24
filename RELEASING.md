@@ -49,13 +49,22 @@ Marketplace must have a Trusted Publishing policy with these exact values:
 
 ## Publish
 
-Either create and push the matching `v<version>` tag or manually run the
-**Publish VS Code Extension** workflow. A tag-triggered run fails before
-publishing when the tag does not match `vscode/package.json`.
+Run the **Publish VS Code Extension** workflow from `main`. The workflow rejects
+other refs and allows only one release run at a time.
 
-The workflow validates the release, packages the VSIX once, publishes it with
-OIDC, and attaches the VSIX and its SHA-256 checksum to the matching GitHub
-release.
+The exact release commit must pass the Linux, Windows, and macOS validation
+matrix before the protected Marketplace job can be approved. The workflow then:
+
+1. Rejects an existing version tag or GitHub release.
+2. Packages the VSIX once with a commit-derived timestamp.
+3. Publishes those exact bytes with OIDC.
+4. Creates the matching Git tag and GitHub release with the VSIX and SHA-256
+   checksum.
+
+Marketplace versions and GitHub release assets are immutable. Never rerun a
+version after changing its source. If Marketplace publishing succeeds but the
+GitHub release job fails, recover the release using the original workflow
+artifact rather than rebuilding or overwriting it.
 
 ## Rollback
 

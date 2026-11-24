@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+### Fixed
+
+- Added migration instructions for uninstalling the pre-Marketplace
+  `revloop.revloop` build before installing `bensiegel.revloop`.
+
 ## 0.1.0
 
 Initial Preview release.

@@ -39,6 +39,16 @@ Install **Revloop** from the VS Code Marketplace or run:
 code --install-extension bensiegel.revloop
 ```
 
+If you installed a pre-Marketplace local build, remove its old extension ID
+before installing this release:
+
+```bash
+code --uninstall-extension revloop.revloop
+code --install-extension bensiegel.revloop
+```
+
+Reload VS Code after migrating.
+
 Open the **Revloop** view from the activity bar after installation.
 
 ## Quick start

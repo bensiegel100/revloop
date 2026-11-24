@@ -1,18 +1,60 @@
 name: Publish VS Code Extension
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
 concurrency:
-  group: publish-vscode-${{ github.ref }}
+  group: publish-vscode
   cancel-in-progress: false
 
 jobs:
+  verify-source:
+    name: Verify release source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Require the current main commit
+        run: |
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$GITHUB_SHA" = "$(git rev-parse origin/main)"
+
+  validate:
+    name: Validate (${{ matrix.os }})
+    needs: verify-source
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.22.1
+          cache: npm
+      - run: npm install --global npm@11.20.0
+      - run: npm ci
+      - run: npm run check
+      - name: Run extension-host tests with Xvfb
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:extension
+      - name: Run extension-host tests
+        if: runner.os != 'Linux'
+        run: npm run test:extension
+
   publish:
-    name: Validate and publish
+    name: Package and publish
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: marketplace
@@ -26,23 +68,35 @@ jobs:
       version: ${{ steps.artifact.outputs.version }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22.22.1
           cache: npm
       - run: npm install --global npm@11.20.0
       - run: npm ci
-      - run: npm run check
-      - run: xvfb-run -a npm run test:extension
       - name: Install Copilot CLI
         run: npm_config_ignore_scripts=false npm install --global @github/copilot@1.0.114
       - run: npm run test:plugin
       - run: npm run test:fuzz
       - id: artifact
         run: node scripts/vscode-artifact.mjs github-output
-      - name: Verify tag matches extension version
-        if: startsWith(github.ref, 'refs/tags/')
-        run: test "$GITHUB_REF_NAME" = "${{ steps.artifact.outputs.tag }}"
+      - name: Require an unused release identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.artifact.outputs.tag }}
+        run: |
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            echo "::error::Git tag $TAG already exists."
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::GitHub release $TAG already exists."
+            exit 1
+          fi
+      - name: Set reproducible package timestamp
+        run: echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct "$GITHUB_SHA")" >> "$GITHUB_ENV"
       - run: npm run package:vscode
       - run: node scripts/vscode-artifact.mjs checksum
       - uses: actions/upload-artifact@v4
@@ -64,22 +118,16 @@ jobs:
         with:
           name: revloop-vscode-${{ needs.publish.outputs.version }}
           path: release-artifacts
-      - name: Create or update release
+      - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.publish.outputs.tag }}
           VERSION: ${{ needs.publish.outputs.version }}
         run: |
-          files=(
-            "release-artifacts/${{ needs.publish.outputs.artifact_path }}"
-            "release-artifacts/${{ needs.publish.outputs.checksum_path }}"
-          )
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY"
-          else
-            gh release create "$TAG" "${files[@]}" \
-              --generate-notes \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --title "Revloop $VERSION"
-          fi
+          gh release create "$TAG" \
+            "release-artifacts/${{ needs.publish.outputs.artifact_path }}" \
+            "release-artifacts/${{ needs.publish.outputs.checksum_path }}" \
+            --generate-notes \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Revloop $VERSION"

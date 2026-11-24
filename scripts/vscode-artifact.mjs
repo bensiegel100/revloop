@@ -36,7 +36,6 @@ switch (command) {
       "--oidc",
       "--packagePath",
       artifactPath,
-      "--skip-duplicate",
     ]);
     break;
   default:
@@ -68,9 +67,12 @@ async function readManifest() {
  * @returns {void}
  */
 function installArtifact() {
-  const codeCli = process.platform === "win32" ? "code.cmd" : "code";
+  const codeCli =
+    process.env.REVLOOP_CODE_CLI ??
+    (process.platform === "win32" ? "code.cmd" : "code");
   execFileSync(codeCli, ["--install-extension", artifactPath, "--force"], {
     cwd: repositoryRoot,
+    shell: process.platform === "win32",
     stdio: "inherit",
   });
 }
