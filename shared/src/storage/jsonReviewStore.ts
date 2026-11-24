@@ -16,6 +16,8 @@ import { parseBranchReviewState } from "./schema.js";
 
 const defaultLockTimeoutMs = 5_000;
 const defaultLockRetryDelayMs = 10;
+const fileOperationRetryAttempts = 100;
+const fileOperationRetryDelayMs = 10;
 const lockOwnerFileName = "owner.json";
 const branchStateFileNamePattern = /^[a-f0-9]{64}\.json$/u;
 
@@ -199,7 +201,7 @@ export class JsonReviewStore {
       encoding: "utf8",
       mode: 0o600,
     });
-    await rename(temporaryPath, filePath);
+    await renameWithRetry(temporaryPath, filePath);
   }
 
   private async withBranchLock<T>(
@@ -300,7 +302,7 @@ export class JsonReviewStore {
 
     const claimedPath = `${lockPath}.${expectedOwner.token}.${randomUUID()}.claimed`;
     try {
-      await rename(lockPath, claimedPath);
+      await renameWithRetry(lockPath, claimedPath);
     } catch (error: unknown) {
       if (isErrnoException(error) && error.code === "ENOENT") {
         return false;
@@ -311,7 +313,7 @@ export class JsonReviewStore {
     const claimedOwner = await readLockOwner(claimedPath);
     if (claimedOwner?.token !== expectedOwner.token) {
       try {
-        await rename(claimedPath, lockPath);
+        await renameWithRetry(claimedPath, lockPath);
       } catch {
         // Keep the mismatched lock intact rather than deleting another owner.
       }
@@ -355,8 +357,38 @@ async function pathExists(filePath: string): Promise<boolean> {
     ) {
       return false;
     }
+
     throw error;
   }
+}
+
+async function renameWithRetry(
+  source: string,
+  destination: string,
+): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await rename(source, destination);
+      return;
+    } catch (error: unknown) {
+      if (
+        !isRetryableFileSystemError(error) ||
+        attempt >= fileOperationRetryAttempts - 1
+      ) {
+        throw error;
+      }
+      await delay(fileOperationRetryDelayMs);
+    }
+  }
+}
+
+function isRetryableFileSystemError(error: unknown): boolean {
+  return (
+    isErrnoException(error) &&
+    (error.code === "EACCES" ||
+      error.code === "EBUSY" ||
+      error.code === "EPERM")
+  );
 }
 
 function isLockOwner(value: unknown): value is LockOwner {

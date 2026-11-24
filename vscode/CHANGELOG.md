@@ -6,6 +6,8 @@
 
 - Added migration instructions for uninstalling the pre-Marketplace
   `revloop.revloop` build before installing `bensiegel.revloop`.
+- Retry transient Windows file-operation failures while persisting shared
+  review state.
 
 ## 0.1.0
 

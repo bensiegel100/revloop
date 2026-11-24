@@ -34758,6 +34758,8 @@ function invalid(path5) {
 // ../shared/dist/storage/jsonReviewStore.js
 var defaultLockTimeoutMs = 5e3;
 var defaultLockRetryDelayMs = 10;
+var fileOperationRetryAttempts = 100;
+var fileOperationRetryDelayMs = 10;
 var lockOwnerFileName = "owner.json";
 var branchStateFileNamePattern = /^[a-f0-9]{64}\.json$/u;
 var ConcurrentReviewStateError = class extends Error {
@@ -34881,7 +34883,7 @@ var JsonReviewStore = class {
       encoding: "utf8",
       mode: 384
     });
-    await (0, import_promises.rename)(temporaryPath, filePath);
+    await renameWithRetry(temporaryPath, filePath);
   }
   async withBranchLock(filePath, operation) {
     const lockPath = `${filePath}.lock`;
@@ -34955,7 +34957,7 @@ var JsonReviewStore = class {
     }
     const claimedPath = `${lockPath}.${expectedOwner.token}.${(0, import_node_crypto3.randomUUID)()}.claimed`;
     try {
-      await (0, import_promises.rename)(lockPath, claimedPath);
+      await renameWithRetry(lockPath, claimedPath);
     } catch (error62) {
       if (isErrnoException(error62) && error62.code === "ENOENT") {
         return false;
@@ -34965,7 +34967,7 @@ var JsonReviewStore = class {
     const claimedOwner = await readLockOwner(claimedPath);
     if (claimedOwner?.token !== expectedOwner.token) {
       try {
-        await (0, import_promises.rename)(claimedPath, lockPath);
+        await renameWithRetry(claimedPath, lockPath);
       } catch {
       }
       return false;
@@ -34998,6 +35000,22 @@ async function pathExists(filePath) {
     }
     throw error62;
   }
+}
+async function renameWithRetry(source, destination) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await (0, import_promises.rename)(source, destination);
+      return;
+    } catch (error62) {
+      if (!isRetryableFileSystemError(error62) || attempt >= fileOperationRetryAttempts - 1) {
+        throw error62;
+      }
+      await delay(fileOperationRetryDelayMs);
+    }
+  }
+}
+function isRetryableFileSystemError(error62) {
+  return isErrnoException(error62) && (error62.code === "EACCES" || error62.code === "EBUSY" || error62.code === "EPERM");
 }
 function isLockOwner(value) {
   return typeof value === "object" && value !== null && "token" in value && typeof value.token === "string" && "pid" in value && typeof value.pid === "number" && Number.isInteger(value.pid) && "hostname" in value && typeof value.hostname === "string" && "createdAt" in value && typeof value.createdAt === "string";

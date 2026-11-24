@@ -197,7 +197,13 @@ async function getRepositoryRoot() {
 function parseTextResult(result) {
   const content = result.content?.find((item) => item.type === "text");
   assert.ok(content, "MCP tool did not return text content.");
-  return JSON.parse(content.text);
+  try {
+    return JSON.parse(content.text);
+  } catch (error) {
+    throw new Error(`MCP tool returned invalid JSON: ${content.text}`, {
+      cause: error,
+    });
+  }
 }
 
 function requiredEnvironment(name) {
