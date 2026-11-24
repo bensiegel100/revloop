@@ -25,3 +25,12 @@ Report vulnerabilities privately as described in
 Support covers the Revloop VS Code extension, agent plugin, and bundled MCP
 server. Questions about VS Code, Git, GitHub Copilot, or another coding harness
 should be directed to that project's support channel.
+
+## Response targets
+
+- Review new bug reports and feature requests at least weekly.
+- Acknowledge private security reports within seven days.
+- Prioritize verified security issues and launch regressions for the next
+  available patch release.
+
+Patch releases are published as needed rather than on a fixed schedule.
