@@ -92,6 +92,22 @@ copilot plugin marketplace add bensiegel100/revloop
 copilot plugin install revloop@revloop
 ```
 
+If `revloop` was previously registered from a local checkout, replace that
+registration first:
+
+```bash
+copilot plugin marketplace remove revloop --force
+copilot plugin marketplace add bensiegel100/revloop
+copilot plugin install revloop@revloop
+```
+
+Verify the public installation with:
+
+```bash
+copilot plugin marketplace browse revloop
+copilot plugin list
+```
+
 Restart Copilot CLI after the first installation, then run:
 
 ```text
